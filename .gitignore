@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+*.user
+
+# Visual Studio
+.vs/
+*.suo
+*.userosscache
+
+# User-specific appsettings (never commit secrets)
+appsettings.Development.json
+
+# NuGet
+packages/
+*.nupkg
+
+# EF Core
+*.cache
+
+# OS
+.DS_Store
+Thumbs.db
