@@ -1,0 +1,39 @@
+<mat-toolbar color="primary">
+  <span class="brand">WMS</span>
+
+  <ng-container *ngIf="authService.isLoggedIn()">
+    <a mat-button routerLink="/dashboard" routerLinkActive="active-link">
+      <mat-icon>dashboard</mat-icon> Dashboard
+    </a>
+    <a mat-button routerLink="/employees" routerLinkActive="active-link">
+      <mat-icon>people</mat-icon> Employees
+    </a>
+    <a mat-button routerLink="/attendance" routerLinkActive="active-link">
+      <mat-icon>access_time</mat-icon> Attendance
+    </a>
+    <a mat-button routerLink="/leaves" routerLinkActive="active-link">
+      <mat-icon>event_busy</mat-icon> Leaves
+    </a>
+    <a mat-button routerLink="/departments" routerLinkActive="active-link">
+      <mat-icon>business</mat-icon> Departments
+    </a>
+    <a mat-button routerLink="/projects" routerLinkActive="active-link">
+      <mat-icon>work</mat-icon> Projects
+    </a>
+    <a mat-button *ngIf="authService.isAdmin()" routerLink="/clients" routerLinkActive="active-link">
+      <mat-icon>handshake</mat-icon> Clients
+    </a>
+    <a mat-button routerLink="/announcements" routerLinkActive="active-link">
+      <mat-icon>campaign</mat-icon> Announcements
+    </a>
+  </ng-container>
+
+  <span class="spacer"></span>
+
+  <ng-container *ngIf="authService.isLoggedIn()">
+    <span class="user-info">{{ authService.getUsername() }} ({{ authService.getRole() }})</span>
+    <button mat-icon-button (click)="logout()" title="Logout">
+      <mat-icon>logout</mat-icon>
+    </button>
+  </ng-container>
+</mat-toolbar>

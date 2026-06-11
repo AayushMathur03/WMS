@@ -1,0 +1,25 @@
+.brand {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-right: 16px;
+  letter-spacing: 1px;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.user-info {
+  font-size: 0.85rem;
+  margin-right: 8px;
+  opacity: 0.9;
+}
+
+.active-link {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+a.mat-button {
+  margin: 0 2px;
+}
