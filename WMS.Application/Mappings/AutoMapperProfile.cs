@@ -1,10 +1,12 @@
 using AutoMapper;
 using WMS.Application.DTOs.Announcement;
 using WMS.Application.DTOs.Attendance;
+using WMS.Application.DTOs.AuditLog;
 using WMS.Application.DTOs.Client;
 using WMS.Application.DTOs.Department;
 using WMS.Application.DTOs.Employee;
 using WMS.Application.DTOs.Leave;
+using WMS.Application.DTOs.Profile;
 using WMS.Application.DTOs.Project;
 using WMS.Domain.Entities;
 
@@ -74,6 +76,18 @@ namespace WMS.Application.Mappings
                 .ForMember(d => d.AnnouncementId, o => o.Ignore())
                 .ForMember(d => d.CreatedOn, o => o.Ignore())
                 .ForMember(d => d.IsActive, o => o.Ignore());
+
+            // Profile
+            CreateMap<Employee, ProfileDto>()
+                .ForMember(d => d.DepartmentName, o => o.MapFrom(s => s.Department != null ? s.Department.DepartmentName : null))
+                .ForMember(d => d.RoleName, o => o.MapFrom(s => s.Role != null ? s.Role.RoleName : null))
+                .ForMember(d => d.Username, o => o.MapFrom(s => s.UserLogin != null ? s.UserLogin.Username : string.Empty));
+
+            CreateMap<UpdateProfileDto, Employee>()
+                .ForAllMembers(o => o.Condition((src, dest, val) => val != null));
+
+            // AuditLog
+            CreateMap<AuditLog, AuditLogDto>();
         }
     }
 }

@@ -36,7 +36,7 @@ namespace WMS.Application.Services
             var roles = await _uow.Roles.GetAllAsync();
             var role = roles.FirstOrDefault(r => r.RoleId == user.RoleId);
 
-            var token = GenerateToken(user.UserId, user.Username, role?.RoleName ?? "Employee");
+            var token = GenerateToken(user.UserId, user.Username, role?.RoleName ?? "Employee", user.EmployeeId);
             var expiry = DateTime.UtcNow.AddHours(8);
 
             return new LoginResponseDto
@@ -49,7 +49,22 @@ namespace WMS.Application.Services
             };
         }
 
-        private string GenerateToken(int userId, string username, string role)
+        public async Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto)
+        {
+            var users = await _uow.UserLogins.GetAllAsync();
+            var user = users.FirstOrDefault(u => u.UserId == userId);
+
+            if (user == null) return false;
+            if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+                throw new ArgumentException("Current password is incorrect.");
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            await _uow.UserLogins.UpdateAsync(user);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+
+        private string GenerateToken(int userId, string username, string role, int employeeId)
         {
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
@@ -60,7 +75,8 @@ namespace WMS.Application.Services
                 new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                 new Claim(ClaimTypes.Name, username),
                 new Claim(ClaimTypes.Role, role),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim("EmployeeId", employeeId.ToString())
             };
 
             var token = new JwtSecurityToken(
