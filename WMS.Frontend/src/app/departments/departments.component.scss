@@ -1,0 +1,13 @@
+.departments-container { padding: 8px 0; }
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.page-title { font-size: 1.6rem; font-weight: 600; margin: 0; }
+.full-width { width: 100%; }
+.loading-center { display: flex; justify-content: center; padding: 40px; }
+.no-data { text-align: center; padding: 24px; color: var(--mat-sys-on-surface-variant); }
