@@ -57,6 +57,18 @@ namespace WMS.API.Controllers
             return Ok(_mapper.Map<ClientDto>(client));
         }
 
+        [HttpPut("deactivate/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Deactivate(int id)
+        {
+            var client = await _uow.Clients.GetByIdAsync(id);
+            if (client == null) return NotFound();
+            client.Status = false;
+            await _uow.Clients.UpdateAsync(client);
+            await _uow.SaveChangesAsync();
+            return NoContent();
+        }
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)

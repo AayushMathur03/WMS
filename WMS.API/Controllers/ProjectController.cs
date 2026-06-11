@@ -65,6 +65,18 @@ namespace WMS.API.Controllers
             return Ok(_mapper.Map<ProjectDto>(project));
         }
 
+        [HttpPut("complete/{id}")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> Complete(int id)
+        {
+            var project = await _uow.Projects.GetByIdAsync(id);
+            if (project == null) return NotFound();
+            project.Status = "Completed";
+            await _uow.Projects.UpdateAsync(project);
+            await _uow.SaveChangesAsync();
+            return Ok(new { projectId = id, status = "Completed" });
+        }
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)

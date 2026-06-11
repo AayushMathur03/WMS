@@ -18,6 +18,7 @@ namespace WMS.API.Controllers
             _context = context;
         }
 
+        [HttpGet]
         [HttpGet("summary")]
         public async Task<IActionResult> GetSummary()
         {

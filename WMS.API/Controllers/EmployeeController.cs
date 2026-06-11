@@ -48,6 +48,14 @@ namespace WMS.API.Controllers
             return result == null ? NotFound() : Ok(result);
         }
 
+        [HttpPut("deactivate/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Deactivate(int id)
+        {
+            var result = await _employeeService.DeleteAsync(id);
+            return result ? NoContent() : NotFound();
+        }
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)

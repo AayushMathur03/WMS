@@ -54,5 +54,12 @@ namespace WMS.Application.Services
             var records = await _uow.Attendances.GetMonthlyAttendanceAsync(empId, month, year);
             return _mapper.Map<IEnumerable<AttendanceResponseDto>>(records);
         }
+
+        public async Task<IEnumerable<AttendanceResponseDto>> GetByEmployeeAsync(int empId)
+        {
+            var all = await _uow.Attendances.GetAllAsync();
+            var records = all.Where(a => a.EmpId == empId).OrderByDescending(a => a.AttendanceDate);
+            return _mapper.Map<IEnumerable<AttendanceResponseDto>>(records);
+        }
     }
 }
