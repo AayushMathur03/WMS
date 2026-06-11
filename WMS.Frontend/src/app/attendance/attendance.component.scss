@@ -1,0 +1,45 @@
+.attendance-container { padding: 8px 0; }
+
+.page-title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.checkin-card { margin-bottom: 24px; }
+
+.checkin-form {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+
+  button { height: 42px; }
+}
+
+.filter-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.full-width { width: 100%; }
+
+.loading-center {
+  display: flex;
+  justify-content: center;
+  padding: 32px;
+}
+
+.no-data {
+  text-align: center;
+  padding: 24px;
+  color: var(--mat-sys-on-surface-variant);
+}
