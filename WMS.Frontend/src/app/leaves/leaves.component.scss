@@ -1,0 +1,48 @@
+.leaves-container { padding: 8px 0; }
+
+.page-title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.tab-content { padding: 24px 0; }
+
+.apply-card { max-width: 700px; }
+
+.apply-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+
+  .full-width { grid-column: 1 / -1; }
+
+  button { grid-column: 1 / -1; width: fit-content; }
+}
+
+.full-width { width: 100%; }
+
+.loading-center {
+  display: flex;
+  justify-content: center;
+  padding: 32px;
+}
+
+.status-chip {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+
+  &.pending { background: #fff8e1; color: #f57f17; }
+  &.approved { background: #e8f5e9; color: #2e7d32; }
+  &.rejected { background: #ffebee; color: #c62828; }
+  &.cancelled { background: #f3e5f5; color: #6a1b9a; }
+}
+
+.no-data {
+  text-align: center;
+  padding: 24px;
+  color: var(--mat-sys-on-surface-variant);
+}
