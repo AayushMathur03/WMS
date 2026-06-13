@@ -16,7 +16,7 @@ namespace WMS.Infrastructure.Repositories
         public IGenericRepository<Project> Projects { get; private set; }
         public IGenericRepository<Client> Clients { get; private set; }
         public IGenericRepository<EmployeeProject> EmployeeProjects { get; private set; }
-        public IGenericRepository<UserLogin> UserLogins { get; private set; }
+        public IUserLoginRepository UserLogins { get; private set; }
         public IGenericRepository<Announcement> Announcements { get; private set; }
         public IGenericRepository<AuditLog> AuditLogs { get; private set; }
 
@@ -31,7 +31,7 @@ namespace WMS.Infrastructure.Repositories
             Projects = new GenericRepository<Project>(context);
             Clients = new GenericRepository<Client>(context);
             EmployeeProjects = new GenericRepository<EmployeeProject>(context);
-            UserLogins = new GenericRepository<UserLogin>(context);
+            UserLogins = new UserLoginRepository(context);
             Announcements = new GenericRepository<Announcement>(context);
             AuditLogs = new GenericRepository<AuditLog>(context);
         }

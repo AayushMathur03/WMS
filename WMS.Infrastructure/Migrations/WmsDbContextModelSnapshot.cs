@@ -30,6 +30,11 @@ namespace WMS.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AnnouncementId"));
 
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
@@ -73,9 +78,9 @@ namespace WMS.Infrastructure.Migrations
                     b.Property<int>("EmpId")
                         .HasColumnType("int");
 
-                    b.Property<double?>("TotalHours")
+                    b.Property<decimal?>("TotalHours")
                         .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("float")
+                        .HasColumnType("decimal(18,2)")
                         .HasComputedColumnSql("CASE WHEN CheckOut IS NOT NULL THEN DATEDIFF(MINUTE, CheckIn, CheckOut) / 60.0 ELSE NULL END", false);
 
                     b.Property<string>("WorkMode")
@@ -83,6 +88,8 @@ namespace WMS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(20)");
 
                     b.HasKey("AttendanceId");
+
+                    b.HasIndex("AttendanceDate");
 
                     b.HasIndex("EmpId");
 
@@ -177,28 +184,28 @@ namespace WMS.Infrastructure.Migrations
                         new
                         {
                             DepartmentId = 1,
-                            CreatedOn = new DateTime(2026, 6, 10, 15, 2, 52, 198, DateTimeKind.Local).AddTicks(8291),
+                            CreatedOn = new DateTime(2026, 6, 12, 16, 46, 33, 832, DateTimeKind.Local).AddTicks(4559),
                             DepartmentName = "Human Resources",
                             Description = "HR Department"
                         },
                         new
                         {
                             DepartmentId = 2,
-                            CreatedOn = new DateTime(2026, 6, 10, 15, 2, 52, 198, DateTimeKind.Local).AddTicks(8303),
+                            CreatedOn = new DateTime(2026, 6, 12, 16, 46, 33, 832, DateTimeKind.Local).AddTicks(4574),
                             DepartmentName = "Information Technology",
                             Description = "IT Department"
                         },
                         new
                         {
                             DepartmentId = 3,
-                            CreatedOn = new DateTime(2026, 6, 10, 15, 2, 52, 198, DateTimeKind.Local).AddTicks(8304),
+                            CreatedOn = new DateTime(2026, 6, 12, 16, 46, 33, 832, DateTimeKind.Local).AddTicks(4575),
                             DepartmentName = "Finance",
                             Description = "Finance Department"
                         },
                         new
                         {
                             DepartmentId = 4,
-                            CreatedOn = new DateTime(2026, 6, 10, 15, 2, 52, 198, DateTimeKind.Local).AddTicks(8305),
+                            CreatedOn = new DateTime(2026, 6, 12, 16, 46, 33, 832, DateTimeKind.Local).AddTicks(4576),
                             DepartmentName = "Operations",
                             Description = "Operations Department"
                         });
@@ -267,6 +274,8 @@ namespace WMS.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("RoleId");
+
+                    b.HasIndex("Status");
 
                     b.ToTable("Employees");
                 });
@@ -358,6 +367,8 @@ namespace WMS.Infrastructure.Migrations
                     b.HasKey("LeaveId");
 
                     b.HasIndex("EmpId");
+
+                    b.HasIndex("Status");
 
                     b.ToTable("Leaves");
                 });

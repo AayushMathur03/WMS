@@ -28,10 +28,22 @@ namespace WMS.Infrastructure.Data
                 .HasIndex(e => e.Email)
                 .IsUnique();
 
+            // Employee status index
+            modelBuilder.Entity<Employee>()
+                .HasIndex(e => e.Status);
+
             // UserLogin unique username
             modelBuilder.Entity<UserLogin>()
                 .HasIndex(u => u.Username)
                 .IsUnique();
+
+            // Attendance Date index
+            modelBuilder.Entity<Attendance>()
+                .HasIndex(a => a.AttendanceDate);
+
+            // Leave Status index
+            modelBuilder.Entity<Leave>()
+                .HasIndex(l => l.Status);
 
             // Attendance computed column
             modelBuilder.Entity<Attendance>()

@@ -28,6 +28,18 @@ namespace WMS.Application.Services
 
             await _uow.Leaves.AddAsync(leave);
             await _uow.SaveChangesAsync();
+
+            // Audit log
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "Leave",
+                RecordId = leave.LeaveId,
+                Action = "Create",
+                CreatedBy = dto.EmpId,
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return _mapper.Map<LeaveResponseDto>(leave);
         }
 
@@ -42,6 +54,18 @@ namespace WMS.Application.Services
 
             await _uow.Leaves.UpdateAsync(leave);
             await _uow.SaveChangesAsync();
+
+            // Audit log — action reflects the new status (Approved / Rejected)
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "Leave",
+                RecordId = leaveId,
+                Action = dto.Status,   // "Approved", "Rejected", etc.
+                CreatedBy = dto.ApprovedBy,
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return _mapper.Map<LeaveResponseDto>(leave);
         }
 
@@ -55,6 +79,18 @@ namespace WMS.Application.Services
             leave.Status = "Cancelled";
             await _uow.Leaves.UpdateAsync(leave);
             await _uow.SaveChangesAsync();
+
+            // Audit log
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "Leave",
+                RecordId = leaveId,
+                Action = "Cancel",
+                CreatedBy = empId,
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return true;
         }
 

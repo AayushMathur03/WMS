@@ -13,6 +13,12 @@ namespace WMS.Application.DTOs.Announcement
         [Required]
         public string Message { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Target audience: "All", "Employee", "Manager", or a specific role name.
+        /// </summary>
+        [MaxLength(50)]
+        public string Audience { get; set; } = "All";
+
         public int CreatedBy { get; set; }
         public DateTime CreatedOn { get; set; }
         public bool IsActive { get; set; }

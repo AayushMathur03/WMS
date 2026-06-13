@@ -16,6 +16,14 @@ namespace WMS.Domain.Entities
         [Required]
         public string Message { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Target audience for this announcement.
+        /// Accepted values: "All", "Employee", "Manager", or any specific role name.
+        /// Defaults to "All" for backwards compatibility.
+        /// </summary>
+        [MaxLength(50)]
+        public string Audience { get; set; } = "All";
+
         [Required]
         public int CreatedBy { get; set; }
 

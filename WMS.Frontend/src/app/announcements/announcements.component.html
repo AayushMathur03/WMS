@@ -1,0 +1,271 @@
+<div class="page-container">
+
+  <!-- ── Page Header ── -->
+  <div class="page-header">
+    <div class="header-left">
+      <h2>
+        <mat-icon class="header-icon">campaign</mat-icon>
+        Announcements
+      </h2>
+      <div class="header-stats" *ngIf="!loading">
+        <span class="stat-pill stat-active">
+          <mat-icon>check_circle</mat-icon>
+          {{ getActiveCount() }} Active
+        </span>
+        <span class="stat-pill stat-inactive" *ngIf="authService.isManagerOrAdmin() && getInactiveCount() > 0">
+          <mat-icon>unpublished</mat-icon>
+          {{ getInactiveCount() }} Inactive
+        </span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <!-- Filter Toggle — Admins & Managers only -->
+      <mat-button-toggle-group
+        *ngIf="authService.isManagerOrAdmin()"
+        [value]="viewFilter"
+        (change)="onFilterChange($event.value)"
+        class="view-toggle"
+        aria-label="View filter">
+        <mat-button-toggle value="active" id="toggle-active">
+          <mat-icon>visibility</mat-icon>
+          Active
+        </mat-button-toggle>
+        <mat-button-toggle value="all" id="toggle-all">
+          <mat-icon>list</mat-icon>
+          All
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <!-- Create — Admin only (backend enforces this) -->
+      <button
+        mat-flat-button
+        color="primary"
+        *ngIf="authService.isAdmin()"
+        (click)="openCreate()"
+        id="btn-create-announcement"
+        class="create-btn">
+        <mat-icon>add</mat-icon>
+        New Announcement
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Create / Edit Form ── -->
+  <mat-card class="wms-card form-card" *ngIf="showForm" id="announcement-form-card">
+    <div class="form-card-header">
+      <div class="form-card-title">
+        <mat-icon>{{ editingId ? 'edit_note' : 'campaign' }}</mat-icon>
+        <span>{{ editingId ? 'Edit Announcement' : 'New Announcement' }}</span>
+      </div>
+      <button mat-icon-button (click)="cancelForm()" matTooltip="Cancel" id="btn-cancel-form">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <mat-card-content class="form-content">
+      <form [formGroup]="form" (ngSubmit)="save()" class="announce-form">
+
+        <!-- Title -->
+        <mat-form-field appearance="outline" class="full-field">
+          <mat-label>Announcement Title</mat-label>
+          <input
+            matInput
+            formControlName="title"
+            placeholder="Enter a clear, concise title"
+            id="input-announcement-title"
+            maxlength="100">
+          <mat-icon matSuffix>title</mat-icon>
+          <mat-hint align="end">{{ form.get('title')?.value?.length || 0 }}/100</mat-hint>
+          <mat-error *ngIf="form.get('title')?.hasError('required')">Title is required</mat-error>
+          <mat-error *ngIf="form.get('title')?.hasError('maxlength')">Maximum 100 characters</mat-error>
+        </mat-form-field>
+
+        <!-- Audience (UI-only, cosmetic) -->
+        <mat-form-field appearance="outline" class="full-field">
+          <mat-label>Target Audience</mat-label>
+          <mat-select formControlName="audience" id="select-audience">
+            <mat-option *ngFor="let opt of audienceOptions" [value]="opt.value">
+              <mat-icon style="vertical-align:middle;margin-right:8px;font-size:16px">{{ opt.icon }}</mat-icon>
+              {{ opt.label }}
+            </mat-option>
+          </mat-select>
+          <mat-icon matSuffix>groups</mat-icon>
+          <mat-hint>Displayed for context — all authenticated users can view announcements</mat-hint>
+        </mat-form-field>
+
+        <!-- Message Content -->
+        <mat-form-field appearance="outline" class="full-field">
+          <mat-label>Message</mat-label>
+          <textarea
+            matInput
+            formControlName="message"
+            rows="5"
+            placeholder="Write the full announcement message here..."
+            id="textarea-announcement-message"
+            maxlength="2000">
+          </textarea>
+          <mat-icon matSuffix>notes</mat-icon>
+          <mat-hint align="end">{{ form.get('message')?.value?.length || 0 }}/2000</mat-hint>
+          <mat-error *ngIf="form.get('message')?.hasError('required')">Message content is required</mat-error>
+          <mat-error *ngIf="form.get('message')?.hasError('maxlength')">Maximum 2000 characters</mat-error>
+        </mat-form-field>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="cancelForm()"
+            id="btn-form-cancel"
+            [disabled]="saving">
+            Cancel
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            id="btn-form-submit"
+            [disabled]="form.invalid || saving">
+            <mat-spinner diameter="16" *ngIf="saving" class="inline-spinner"></mat-spinner>
+            <mat-icon *ngIf="!saving">{{ editingId ? 'save' : 'send' }}</mat-icon>
+            {{ saving ? 'Saving...' : (editingId ? 'Update Announcement' : 'Post Announcement') }}
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- ── Loading State ── -->
+  <div class="loading-container" *ngIf="loading" id="announcements-loading">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p class="loading-text">Loading announcements...</p>
+  </div>
+
+  <!-- ── Error State ── -->
+  <div class="error-state" *ngIf="!loading && error" id="announcements-error">
+    <mat-icon>error_outline</mat-icon>
+    <p>{{ error }}</p>
+    <button mat-stroked-button (click)="loadAnnouncements()" id="btn-retry">
+      <mat-icon>refresh</mat-icon>
+      Retry
+    </button>
+  </div>
+
+  <!-- ── Empty State ── -->
+  <div class="empty-state" *ngIf="!loading && !error && filteredAnnouncements.length === 0" id="announcements-empty">
+    <div class="empty-icon-wrap">
+      <mat-icon>campaign</mat-icon>
+    </div>
+    <h3>No announcements found</h3>
+    <p *ngIf="viewFilter === 'active'">There are no active announcements at this time.</p>
+    <p *ngIf="viewFilter === 'all' && authService.isAdmin()">
+      No announcements exist yet.
+      <button mat-flat-button color="primary" (click)="openCreate()" id="btn-create-first" style="margin-left:8px">
+        Create one
+      </button>
+    </p>
+  </div>
+
+  <!-- ── Announcements List ── -->
+  <div class="announcements-list" *ngIf="!loading && !error && filteredAnnouncements.length > 0" id="announcements-list">
+
+    <mat-card
+      class="wms-card announce-card"
+      *ngFor="let a of pagedAnnouncements; trackBy: trackByAnnouncement"
+      [class.announce-card--inactive]="!a.isActive"
+      [id]="'announcement-' + a.announcementId">
+
+      <mat-card-content class="announce-body">
+
+        <!-- Card Header -->
+        <div class="announce-header">
+          <div class="announce-icon-col">
+            <div class="announce-avatar" [class.announce-avatar--inactive]="!a.isActive">
+              <mat-icon>campaign</mat-icon>
+            </div>
+          </div>
+
+          <div class="announce-main">
+            <div class="announce-title-row">
+              <span class="announce-title">{{ a.title }}</span>
+              <div class="announce-badges">
+                <span
+                  class="status-chip"
+                  [class]="a.isActive ? 'status-active' : 'status-inactive'"
+                  [id]="'status-' + a.announcementId">
+                  <mat-icon>{{ a.isActive ? 'check_circle' : 'unpublished' }}</mat-icon>
+                  {{ a.isActive ? 'Active' : 'Inactive' }}
+                </span>
+                <span class="audience-chip" [id]="'audience-' + a.announcementId">
+                  <mat-icon>{{ getAudienceIcon(a.audience) }}</mat-icon>
+                  {{ getAudienceLabel(a.audience) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="announce-meta">
+              <span class="meta-item">
+                <mat-icon>person</mat-icon>
+                {{ getCreatorLabel(a.createdBy) }}
+              </span>
+              <span class="meta-divider">·</span>
+              <span class="meta-item">
+                <mat-icon>schedule</mat-icon>
+                {{ a.createdOn | date:'MMM d, y, h:mm a' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="announce-content-area">
+          <p class="announce-content">{{ a.message }}</p>
+        </div>
+
+        <!-- Actions — Admin only (backend enforces) -->
+        <div class="announce-actions" *ngIf="authService.isAdmin()">
+          <mat-divider class="actions-divider"></mat-divider>
+          <div class="actions-row">
+            <button
+              mat-stroked-button
+              (click)="openEdit(a)"
+              [id]="'btn-edit-' + a.announcementId"
+              matTooltip="Edit this announcement">
+              <mat-icon>edit</mat-icon>
+              Edit
+            </button>
+            <button
+              mat-stroked-button
+              color="warn"
+              *ngIf="a.isActive"
+              (click)="deactivate(a.announcementId, a.title)"
+              [id]="'btn-deactivate-' + a.announcementId"
+              matTooltip="Deactivate — hides from employees but keeps in history">
+              <mat-icon>unpublished</mat-icon>
+              Deactivate
+            </button>
+            <span class="deactivated-label" *ngIf="!a.isActive">
+              <mat-icon>info</mat-icon>
+              This announcement is deactivated and not visible to employees
+            </span>
+          </div>
+        </div>
+
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Paginator -->
+    <mat-paginator
+      [length]="filteredAnnouncements.length"
+      [pageSize]="pageSize"
+      [pageIndex]="pageIndex"
+      [pageSizeOptions]="[6, 12, 24]"
+      (page)="onPageChange($event)"
+      showFirstLastButtons
+      id="announcements-paginator">
+    </mat-paginator>
+  </div>
+
+</div>

@@ -46,6 +46,17 @@ namespace WMS.Application.Services
             await _uow.UserLogins.AddAsync(login);
             await _uow.SaveChangesAsync();
 
+            // Audit log
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "Employee",
+                RecordId = employee.EmployeeId,
+                Action = "Create",
+                CreatedBy = employee.EmployeeId,
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return _mapper.Map<EmployeeResponseDto>(employee);
         }
 
@@ -57,6 +68,16 @@ namespace WMS.Application.Services
             _mapper.Map(dto, employee);
             employee.UpdatedOn = DateTime.Now;
             await _uow.Employees.UpdateAsync(employee);
+            await _uow.SaveChangesAsync();
+
+            // Audit log
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "Employee",
+                RecordId = id,
+                Action = "Update",
+                CreatedOn = DateTime.Now
+            });
             await _uow.SaveChangesAsync();
 
             return _mapper.Map<EmployeeResponseDto>(employee);
@@ -71,6 +92,17 @@ namespace WMS.Application.Services
             employee.UpdatedOn = DateTime.Now;
             await _uow.Employees.UpdateAsync(employee);
             await _uow.SaveChangesAsync();
+
+            // Audit log
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "Employee",
+                RecordId = id,
+                Action = "Deactivate",
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return true;
         }
 

@@ -76,6 +76,7 @@ namespace WMS.Application.Mappings
                 .ForMember(d => d.AnnouncementId, o => o.Ignore())
                 .ForMember(d => d.CreatedOn, o => o.Ignore())
                 .ForMember(d => d.IsActive, o => o.Ignore());
+            // Note: Audience is mapped by convention (same property name on both sides)
 
             // Profile
             CreateMap<Employee, ProfileDto>()

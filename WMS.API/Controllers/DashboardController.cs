@@ -24,18 +24,22 @@ namespace WMS.API.Controllers
         {
             var today = DateTime.Today;
 
-            var summary = new DashboardSummaryDto
-            {
-                TotalEmployees = await _context.Employees.CountAsync(),
-                ActiveEmployees = await _context.Employees.CountAsync(e => e.Status == "Active"),
-                TodayCheckIns = await _context.Attendances.CountAsync(a => a.AttendanceDate == today),
-                PendingLeaves = await _context.Leaves.CountAsync(l => l.Status == "Pending"),
-                ActiveProjects = await _context.Projects.CountAsync(p => p.Status == "Active"),
-                TotalDepartments = await _context.Departments.CountAsync(),
-                TotalClients = await _context.Clients.CountAsync(c => c.Status == true)
-            };
+            // Execute all counts in a single round-trip query projected via an always-seeded table (Roles)
+            var summary = await _context.Roles
+                .Take(1)
+                .Select(_ => new DashboardSummaryDto
+                {
+                    TotalEmployees = _context.Employees.Count(),
+                    ActiveEmployees = _context.Employees.Count(e => e.Status == "Active"),
+                    TodayCheckIns = _context.Attendances.Count(a => a.AttendanceDate == today),
+                    PendingLeaves = _context.Leaves.Count(l => l.Status == "Pending"),
+                    ActiveProjects = _context.Projects.Count(p => p.Status == "Active"),
+                    TotalDepartments = _context.Departments.Count(),
+                    TotalClients = _context.Clients.Count(c => c.Status == true)
+                })
+                .FirstOrDefaultAsync();
 
-            return Ok(summary);
+            return Ok(summary ?? new DashboardSummaryDto());
         }
     }
 }

@@ -18,7 +18,7 @@ namespace WMS.Domain.Entities
         public DateTime? CheckOut { get; set; }
 
         [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
-        public double? TotalHours { get; set; }
+        public decimal? TotalHours { get; set; }
 
         [MaxLength(20)]
         public string? WorkMode { get; set; }
