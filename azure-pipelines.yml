@@ -114,7 +114,7 @@ stages:
             inputs:
               azureSubscription: 'azure-wms'
               appType: 'webApp'
-              appName: 'wms-api-aayush-hpepa0etcbg3e4dg'
+              appName: 'wms-api-aayush'
               package: '$(Pipeline.Workspace)/api/*.zip'
 
 # ─────────────────────────────────────────
