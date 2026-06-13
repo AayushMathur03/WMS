@@ -18,6 +18,10 @@ public class AuthServiceTests
     {
         _uow = new Mock<IUnitOfWork>();
 
+        var auditLogRepo = new Mock<IGenericRepository<AuditLog>>();
+        auditLogRepo.Setup(r => r.AddAsync(It.IsAny<AuditLog>())).Returns(Task.CompletedTask);
+        _uow.Setup(u => u.AuditLogs).Returns(auditLogRepo.Object);
+
         var inMemorySettings = new Dictionary<string, string>
         {
             { "Jwt:Key", "WMS@SecretKey#2026$JwtToken!SuperSecure" },
@@ -113,7 +117,7 @@ public class AuthServiceTests
 
         // Assert — LastLogin was set
         user.LastLogin.Should().NotBeNull();
-        _uow.Verify(u => u.SaveChangesAsync(), Times.Once);
+        _uow.Verify(u => u.SaveChangesAsync(), Times.Exactly(2));
     }
 
     // --------------- ChangePasswordAsync ---------------

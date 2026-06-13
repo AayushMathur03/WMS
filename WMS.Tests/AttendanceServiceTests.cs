@@ -18,6 +18,11 @@ public class AttendanceServiceTests
     public AttendanceServiceTests()
     {
         _uow = new Mock<IUnitOfWork>();
+
+        var auditLogRepo = new Mock<IGenericRepository<AuditLog>>();
+        auditLogRepo.Setup(r => r.AddAsync(It.IsAny<AuditLog>())).Returns(Task.CompletedTask);
+        _uow.Setup(u => u.AuditLogs).Returns(auditLogRepo.Object);
+
         _mapper = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfile>())
             .CreateMapper();
         _sut = new AttendanceService(_uow.Object, _mapper);
@@ -45,7 +50,7 @@ public class AttendanceServiceTests
         result.WorkMode.Should().Be("WFO");
         result.CheckOut.Should().BeNull();
         _uow.Verify(u => u.Attendances.AddAsync(It.IsAny<Attendance>()), Times.Once);
-        _uow.Verify(u => u.SaveChangesAsync(), Times.Once);
+        _uow.Verify(u => u.SaveChangesAsync(), Times.Exactly(2));
     }
 
     [Fact]
