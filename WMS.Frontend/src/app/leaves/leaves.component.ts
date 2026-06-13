@@ -1,11 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -14,6 +14,8 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatSort, MatSortModule } from '@angular/material/sort';
 import { AuthService } from '../shared/services/auth.service';
 import { environment } from '../../environments/environment';
 
@@ -46,21 +48,28 @@ interface Leave {
     MatNativeDateModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
-    MatTabsModule
+    MatTabsModule,
+    MatPaginatorModule,
+    MatSortModule
   ],
   templateUrl: './leaves.component.html',
   styleUrl: './leaves.component.scss'
 })
 export class LeavesComponent implements OnInit {
   applyForm: FormGroup;
-  myLeaves: Leave[] = [];
-  pendingLeaves: Leave[] = [];
+  myLeavesDataSource = new MatTableDataSource<Leave>([]);
+  pendingLeavesDataSource = new MatTableDataSource<Leave>([]);
   loadingMy = false;
   loadingPending = false;
   submitting = false;
 
   myColumns = ['type', 'from', 'to', 'reason', 'status', 'actions'];
   pendingColumns = ['employee', 'type', 'from', 'to', 'reason', 'actions'];
+
+  @ViewChild('myPaginator') myPaginator!: MatPaginator;
+  @ViewChild('mySort') mySort!: MatSort;
+  @ViewChild('pendingPaginator') pendingPaginator!: MatPaginator;
+  @ViewChild('pendingSort') pendingSort!: MatSort;
 
   constructor(
     private fb: FormBuilder,
@@ -86,7 +95,12 @@ export class LeavesComponent implements OnInit {
     this.loadingMy = true;
     const empId = this.authService.getEmployeeId();
     this.http.get<Leave[]>(`${environment.apiUrl}/leave/employee/${empId}`).subscribe({
-      next: (data) => { this.myLeaves = data; this.loadingMy = false; },
+      next: (data) => {
+        this.myLeavesDataSource.data = data;
+        this.myLeavesDataSource.paginator = this.myPaginator;
+        this.myLeavesDataSource.sort = this.mySort;
+        this.loadingMy = false;
+      },
       error: () => { this.loadingMy = false; }
     });
   }
@@ -94,7 +108,12 @@ export class LeavesComponent implements OnInit {
   loadPendingLeaves(): void {
     this.loadingPending = true;
     this.http.get<Leave[]>(`${environment.apiUrl}/leave/pending`).subscribe({
-      next: (data) => { this.pendingLeaves = data; this.loadingPending = false; },
+      next: (data) => {
+        this.pendingLeavesDataSource.data = data;
+        this.pendingLeavesDataSource.paginator = this.pendingPaginator;
+        this.pendingLeavesDataSource.sort = this.pendingSort;
+        this.loadingPending = false;
+      },
       error: () => { this.loadingPending = false; }
     });
   }
@@ -118,8 +137,7 @@ export class LeavesComponent implements OnInit {
 
   cancelLeave(leave: Leave): void {
     if (!confirm('Cancel this leave request?')) return;
-    const empId = this.authService.getEmployeeId();
-    this.http.put(`${environment.apiUrl}/leave/${leave.leaveId}/cancel/${empId}`, {}).subscribe({
+    this.http.delete(`${environment.apiUrl}/leave/${leave.leaveId}`).subscribe({
       next: () => { this.showSnack('Leave cancelled'); this.loadMyLeaves(); },
       error: (err) => this.showSnack(err.error?.message ?? 'Cancel failed', true)
     });
@@ -127,7 +145,7 @@ export class LeavesComponent implements OnInit {
 
   updateStatus(leave: Leave, status: 'Approved' | 'Rejected'): void {
     const body = { status, approvedBy: this.authService.getEmployeeId() };
-    this.http.put(`${environment.apiUrl}/leave/${leave.leaveId}/status`, body).subscribe({
+    this.http.put(`${environment.apiUrl}/leave/${leave.leaveId}/review`, body).subscribe({
       next: () => {
         this.showSnack(`Leave ${status}`);
         this.loadPendingLeaves();

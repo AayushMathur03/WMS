@@ -1,15 +1,28 @@
-.clients-container { padding: 8px 0; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-title { font-size: 1.6rem; font-weight: 600; margin: 0; }
-.full-width { width: 100%; }
-.loading-center { display: flex; justify-content: center; padding: 40px; }
-.no-data { text-align: center; padding: 24px; color: var(--mat-sys-on-surface-variant); }
+.client-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-.status-chip {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 0.78rem;
-  font-weight: 500;
-  &.active { background: #e8f5e9; color: #2e7d32; }
-  &.inactive { background: #fce4ec; color: #c62828; }
+.client-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--mat-sys-tertiary-container), var(--mat-sys-secondary-container));
+  color: var(--mat-sys-on-tertiary-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.address-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.875rem;
 }

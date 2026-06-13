@@ -44,7 +44,7 @@ public class AuthServiceTests
         };
         var roles = new List<Role> { new() { RoleId = 1, RoleName = "Admin" } };
 
-        _uow.Setup(u => u.UserLogins.GetAllAsync()).ReturnsAsync(users);
+        _uow.Setup(u => u.UserLogins.GetByUsernameAsync("admin")).ReturnsAsync(users[0]);
         _uow.Setup(u => u.UserLogins.UpdateAsync(It.IsAny<UserLogin>())).Returns(Task.CompletedTask);
         _uow.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
         _uow.Setup(u => u.Roles.GetAllAsync()).ReturnsAsync(roles);
@@ -66,7 +66,7 @@ public class AuthServiceTests
     public async Task LoginAsync_UserNotFound_ReturnsNull()
     {
         // Arrange
-        _uow.Setup(u => u.UserLogins.GetAllAsync()).ReturnsAsync(new List<UserLogin>());
+        _uow.Setup(u => u.UserLogins.GetByUsernameAsync("nobody")).ReturnsAsync((UserLogin)null!);
 
         var dto = new LoginRequestDto { Username = "nobody", Password = "pass" };
 
@@ -86,7 +86,7 @@ public class AuthServiceTests
         {
             new() { UserId = 1, EmployeeId = 1, Username = "admin", PasswordHash = hash, RoleId = 1 }
         };
-        _uow.Setup(u => u.UserLogins.GetAllAsync()).ReturnsAsync(users);
+        _uow.Setup(u => u.UserLogins.GetByUsernameAsync("admin")).ReturnsAsync(users[0]);
 
         var dto = new LoginRequestDto { Username = "admin", Password = "WrongPassword" };
 
@@ -103,7 +103,7 @@ public class AuthServiceTests
         // Arrange
         var hash = BCrypt.Net.BCrypt.HashPassword("Admin@123");
         var user = new UserLogin { UserId = 1, EmployeeId = 1, Username = "admin", PasswordHash = hash, RoleId = 1 };
-        _uow.Setup(u => u.UserLogins.GetAllAsync()).ReturnsAsync(new List<UserLogin> { user });
+        _uow.Setup(u => u.UserLogins.GetByUsernameAsync("admin")).ReturnsAsync(user);
         _uow.Setup(u => u.UserLogins.UpdateAsync(It.IsAny<UserLogin>())).Returns(Task.CompletedTask);
         _uow.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
         _uow.Setup(u => u.Roles.GetAllAsync()).ReturnsAsync(new List<Role> { new() { RoleId = 1, RoleName = "Admin" } });
@@ -124,7 +124,7 @@ public class AuthServiceTests
         // Arrange
         var hash = BCrypt.Net.BCrypt.HashPassword("OldPass@123");
         var user = new UserLogin { UserId = 1, EmployeeId = 1, Username = "admin", PasswordHash = hash };
-        _uow.Setup(u => u.UserLogins.GetAllAsync()).ReturnsAsync(new List<UserLogin> { user });
+        _uow.Setup(u => u.UserLogins.GetByIdAsync(1)).ReturnsAsync(user);
         _uow.Setup(u => u.UserLogins.UpdateAsync(It.IsAny<UserLogin>())).Returns(Task.CompletedTask);
         _uow.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
 
@@ -144,7 +144,7 @@ public class AuthServiceTests
         // Arrange
         var hash = BCrypt.Net.BCrypt.HashPassword("CorrectPass@123");
         var user = new UserLogin { UserId = 1, EmployeeId = 1, Username = "admin", PasswordHash = hash };
-        _uow.Setup(u => u.UserLogins.GetAllAsync()).ReturnsAsync(new List<UserLogin> { user });
+        _uow.Setup(u => u.UserLogins.GetByIdAsync(1)).ReturnsAsync(user);
 
         var dto = new ChangePasswordDto { CurrentPassword = "WrongPass", NewPassword = "NewPass@456" };
 
@@ -160,7 +160,7 @@ public class AuthServiceTests
     public async Task ChangePasswordAsync_UserNotFound_ReturnsFalse()
     {
         // Arrange
-        _uow.Setup(u => u.UserLogins.GetAllAsync()).ReturnsAsync(new List<UserLogin>());
+        _uow.Setup(u => u.UserLogins.GetByIdAsync(999)).ReturnsAsync((UserLogin)null!);
 
         var dto = new ChangePasswordDto { CurrentPassword = "any", NewPassword = "NewPass@456" };
 

@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Text;
 using WMS.Application.DTOs.Auth;
 using WMS.Application.Services.Interfaces;
+using WMS.Domain.Entities;
 using WMS.Domain.Interfaces;
 
 namespace WMS.Application.Services
@@ -22,8 +23,7 @@ namespace WMS.Application.Services
 
         public async Task<LoginResponseDto?> LoginAsync(LoginRequestDto dto)
         {
-            var users = await _uow.UserLogins.GetAllAsync();
-            var user = users.FirstOrDefault(u => u.Username == dto.Username);
+            var user = await _uow.UserLogins.GetByUsernameAsync(dto.Username);
 
             if (user == null) return null;
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash)) return null;
@@ -39,6 +39,17 @@ namespace WMS.Application.Services
             var token = GenerateToken(user.UserId, user.Username, role?.RoleName ?? "Employee", user.EmployeeId);
             var expiry = DateTime.UtcNow.AddHours(8);
 
+            // Audit log — record successful login
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "UserLogin",
+                RecordId = user.EmployeeId,
+                Action = "Login",
+                CreatedBy = user.EmployeeId,
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return new LoginResponseDto
             {
                 Token = token,
@@ -51,8 +62,7 @@ namespace WMS.Application.Services
 
         public async Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto)
         {
-            var users = await _uow.UserLogins.GetAllAsync();
-            var user = users.FirstOrDefault(u => u.UserId == userId);
+            var user = await _uow.UserLogins.GetByIdAsync(userId);
 
             if (user == null) return false;
             if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
@@ -61,6 +71,18 @@ namespace WMS.Application.Services
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
             await _uow.UserLogins.UpdateAsync(user);
             await _uow.SaveChangesAsync();
+
+            // Audit log
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "UserLogin",
+                RecordId = user.EmployeeId,
+                Action = "PasswordChange",
+                CreatedBy = user.EmployeeId,
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return true;
         }
 

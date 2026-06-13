@@ -10,7 +10,7 @@ namespace WMS.Domain.Interfaces
         IGenericRepository<WMS.Domain.Entities.Project> Projects { get; }
         IGenericRepository<WMS.Domain.Entities.Client> Clients { get; }
         IGenericRepository<WMS.Domain.Entities.EmployeeProject> EmployeeProjects { get; }
-        IGenericRepository<WMS.Domain.Entities.UserLogin> UserLogins { get; }
+        IUserLoginRepository UserLogins { get; }
         IGenericRepository<WMS.Domain.Entities.Announcement> Announcements { get; }
         IGenericRepository<WMS.Domain.Entities.AuditLog> AuditLogs { get; }
         Task<int> SaveChangesAsync();

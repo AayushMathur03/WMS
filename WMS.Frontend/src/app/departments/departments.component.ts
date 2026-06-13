@@ -1,16 +1,19 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatSort, MatSortModule } from '@angular/material/sort';
 import { AuthService } from '../shared/services/auth.service';
 import { environment } from '../../environments/environment';
 import { DepartmentFormDialogComponent } from './department-form-dialog/department-form-dialog.component';
@@ -35,15 +38,21 @@ export interface Department {
     MatInputModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
-    MatDialogModule
+    MatDialogModule,
+    MatPaginatorModule,
+    MatSortModule,
+    MatTooltipModule
   ],
   templateUrl: './departments.component.html',
   styleUrl: './departments.component.scss'
 })
 export class DepartmentsComponent implements OnInit {
-  departments: Department[] = [];
+  dataSource = new MatTableDataSource<Department>([]);
   loading = true;
   displayedColumns = ['name', 'description', 'actions'];
+
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
 
   constructor(
     private http: HttpClient,
@@ -57,7 +66,12 @@ export class DepartmentsComponent implements OnInit {
   load(): void {
     this.loading = true;
     this.http.get<Department[]>(`${environment.apiUrl}/department`).subscribe({
-      next: (data) => { this.departments = data; this.loading = false; },
+      next: (data) => {
+        this.dataSource.data = data;
+        this.dataSource.paginator = this.paginator;
+        this.dataSource.sort = this.sort;
+        this.loading = false;
+      },
       error: () => { this.loading = false; }
     });
   }
@@ -82,6 +96,11 @@ export class DepartmentsComponent implements OnInit {
       next: () => { this.load(); this.showSnack('Department deleted'); },
       error: () => this.showSnack('Delete failed', true)
     });
+  }
+
+  applyFilter(value: string): void {
+    this.dataSource.filter = value.trim().toLowerCase();
+    if (this.dataSource.paginator) this.dataSource.paginator.firstPage();
   }
 
   private showSnack(msg: string, error = false): void {

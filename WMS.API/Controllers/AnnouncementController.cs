@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using WMS.Application.DTOs.Announcement;
 using WMS.Domain.Entities;
 using WMS.Domain.Interfaces;
@@ -50,6 +51,18 @@ namespace WMS.API.Controllers
             var announcement = _mapper.Map<Announcement>(dto);
             await _uow.Announcements.AddAsync(announcement);
             await _uow.SaveChangesAsync();
+
+            var callerId = GetCallerId();
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "Announcement",
+                RecordId = announcement.AnnouncementId,
+                Action = "Create",
+                CreatedBy = callerId,
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return CreatedAtAction(nameof(GetById), new { id = announcement.AnnouncementId }, _mapper.Map<AnnouncementDto>(announcement));
         }
 
@@ -61,8 +74,20 @@ namespace WMS.API.Controllers
             if (announcement == null) return NotFound();
             announcement.Title = dto.Title;
             announcement.Message = dto.Message;
+            announcement.Audience = dto.Audience;
             await _uow.Announcements.UpdateAsync(announcement);
             await _uow.SaveChangesAsync();
+
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "Announcement",
+                RecordId = id,
+                Action = "Update",
+                CreatedBy = GetCallerId(),
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return Ok(_mapper.Map<AnnouncementDto>(announcement));
         }
 
@@ -75,6 +100,17 @@ namespace WMS.API.Controllers
             announcement.IsActive = false;
             await _uow.Announcements.UpdateAsync(announcement);
             await _uow.SaveChangesAsync();
+
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "Announcement",
+                RecordId = id,
+                Action = "Deactivate",
+                CreatedBy = GetCallerId(),
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return NoContent();
         }
 
@@ -84,7 +120,25 @@ namespace WMS.API.Controllers
         {
             await _uow.Announcements.DeleteAsync(id);
             await _uow.SaveChangesAsync();
+
+            await _uow.AuditLogs.AddAsync(new AuditLog
+            {
+                EntityName = "Announcement",
+                RecordId = id,
+                Action = "Delete",
+                CreatedBy = GetCallerId(),
+                CreatedOn = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
             return NoContent();
+        }
+
+        /// <summary>Reads the EmployeeId claim from the current JWT token.</summary>
+        private int? GetCallerId()
+        {
+            var claim = User.FindFirstValue("EmployeeId");
+            return claim != null && int.TryParse(claim, out var id) ? id : null;
         }
     }
 }

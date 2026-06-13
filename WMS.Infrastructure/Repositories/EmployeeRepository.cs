@@ -9,6 +9,13 @@ namespace WMS.Infrastructure.Repositories
     {
         public EmployeeRepository(WmsDbContext context) : base(context) { }
 
+        public override async Task<IEnumerable<Employee>> GetAllAsync()
+            => await _dbSet
+                .AsNoTracking()
+                .Include(e => e.Department)
+                .Include(e => e.Role)
+                .ToListAsync();
+
         public async Task<Employee?> GetByEmailAsync(string email)
             => await _dbSet
                 .Include(e => e.Department)
