@@ -54,7 +54,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("WMSPolicy", policy =>
         policy.WithOrigins(
                 "http://localhost:4200",
-                "https://delightful-plant-04cafaa00.7.azurestaticapps.net"
+                "https://delightful-plant-04cafaa00.7.azurestaticapps.net",
+                "https://wms-api-aayush-hpepa0etcbg3e4dg.centralindia-01.azurewebsites.net"
               )
               .AllowAnyMethod()
               .AllowAnyHeader());
