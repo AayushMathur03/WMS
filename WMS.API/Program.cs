@@ -52,7 +52,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("WMSPolicy", policy =>
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins(
+                "http://localhost:4200",
+                "https://delightful-plant-04cafaa00.7.azurestaticapps.net"
+              )
               .AllowAnyMethod()
               .AllowAnyHeader());
 });
@@ -95,11 +98,8 @@ var app = builder.Build();
 // Middleware pipeline
 app.UseMiddleware<ExceptionMiddleware>();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors("WMSPolicy");
 app.UseHttpsRedirection();
