@@ -18,6 +18,11 @@ public class LeaveServiceTests
     public LeaveServiceTests()
     {
         _uow = new Mock<IUnitOfWork>();
+
+        var auditLogRepo = new Mock<IGenericRepository<AuditLog>>();
+        auditLogRepo.Setup(r => r.AddAsync(It.IsAny<AuditLog>())).Returns(Task.CompletedTask);
+        _uow.Setup(u => u.AuditLogs).Returns(auditLogRepo.Object);
+
         _mapper = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfile>())
             .CreateMapper();
         _sut = new LeaveService(_uow.Object, _mapper);

@@ -18,6 +18,15 @@ public class EmployeeServiceTests
     public EmployeeServiceTests()
     {
         _uow = new Mock<IUnitOfWork>();
+
+        var auditLogRepo = new Mock<IGenericRepository<AuditLog>>();
+        auditLogRepo.Setup(r => r.AddAsync(It.IsAny<AuditLog>())).Returns(Task.CompletedTask);
+        _uow.Setup(u => u.AuditLogs).Returns(auditLogRepo.Object);
+
+        var userLoginRepo = new Mock<IUserLoginRepository>();
+        userLoginRepo.Setup(r => r.AddAsync(It.IsAny<UserLogin>())).Returns(Task.CompletedTask);
+        _uow.Setup(u => u.UserLogins).Returns(userLoginRepo.Object);
+
         _mapper = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfile>())
             .CreateMapper();
         _sut = new EmployeeService(_uow.Object, _mapper);
