@@ -127,6 +127,8 @@ stages:
   jobs:
   - job: DeployFrontend
     displayName: 'Deploy Angular to Azure Static Web Apps'
+    pool:
+      vmImage: 'ubuntu-latest'
     steps:
     - task: DownloadBuildArtifacts@1
       displayName: 'Download frontend artifact'
