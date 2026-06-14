@@ -9,6 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { environment } from '../../../environments/environment';
 import { Project } from '../projects.component';
 
@@ -17,7 +18,7 @@ interface Client { clientId: number; clientName: string; }
 @Component({
   selector: 'app-project-form-dialog',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatDatepickerModule, MatNativeDateModule],
+  imports: [CommonModule, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatDatepickerModule, MatNativeDateModule, MatSnackBarModule],
   templateUrl: './project-form-dialog.component.html'
 })
 export class ProjectFormDialogComponent implements OnInit {
@@ -30,6 +31,7 @@ export class ProjectFormDialogComponent implements OnInit {
     private fb: FormBuilder,
     private http: HttpClient,
     private dialogRef: MatDialogRef<ProjectFormDialogComponent>,
+    private snackBar: MatSnackBar,
     @Inject(MAT_DIALOG_DATA) public data: Project | null
   ) {
     this.isEdit = !!data;
@@ -43,7 +45,10 @@ export class ProjectFormDialogComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.http.get<Client[]>(`${environment.apiUrl}/client`).subscribe(c => this.clients = c);
+    this.http.get<Client[]>(`${environment.apiUrl}/client`).subscribe({
+      next: (c) => { this.clients = c; },
+      error: () => {}
+    });
   }
 
   save(): void {
@@ -54,7 +59,10 @@ export class ProjectFormDialogComponent implements OnInit {
       : this.http.post(`${environment.apiUrl}/project`, this.form.value);
     req.subscribe({
       next: () => { this.saving = false; this.dialogRef.close(true); },
-      error: () => { this.saving = false; }
+      error: () => {
+        this.saving = false;
+        this.snackBar.open('Failed to save project. Please try again.', 'Close', { duration: 4000, panelClass: ['snack-error'] });
+      }
     });
   }
 
