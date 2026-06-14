@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -7,23 +7,19 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { forkJoin, Subscription } from 'rxjs';
+import { AuthService } from '../../shared/services/auth.service';
 import { environment } from '../../../environments/environment';
-import { Employee } from '../employees.component';
+import { Project } from '../projects.component';
 
-interface Department { departmentId: number; departmentName: string; }
 interface Role { roleId: number; roleName: string; }
-interface Manager { employeeId: number; fullName: string; }
+interface Employee { employeeId: number; fullName: string; roleName?: string; }
 
 @Component({
-  selector: 'app-employee-form-dialog',
+  selector: 'app-assign-employee-dialog',
   standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     ReactiveFormsModule,
@@ -32,242 +28,107 @@ interface Manager { employeeId: number; fullName: string; }
     MatInputModule,
     MatSelectModule,
     MatButtonModule,
-    MatIconModule,
     MatDatepickerModule,
     MatNativeDateModule,
-    MatSnackBarModule,
-    MatProgressSpinnerModule
+    MatSnackBarModule
   ],
-  templateUrl: './employee-form-dialog.component.html'
+  templateUrl: './assign-employee-dialog.component.html'
 })
-export class EmployeeFormDialogComponent implements OnInit, OnDestroy {
+export class AssignEmployeeDialogComponent implements OnInit {
   form: FormGroup;
-  departments: Department[] = [];
   roles: Role[] = [];
-  managers: Manager[] = [];
-  isEdit: boolean;
+  allEmployees: Employee[] = [];
+  filteredEmployees: Employee[] = [];
+  selectedRoleName: string = 'all';
   saving = false;
-  loadingData = true;
-  hidePassword = true;
-
-  // Track username auto-generation state separately from form.dirty
-  private usernameAutoPopulated = false;
-  private emailSub?: Subscription;
 
   constructor(
     private fb: FormBuilder,
     private http: HttpClient,
-    private dialogRef: MatDialogRef<EmployeeFormDialogComponent>,
-    private cdr: ChangeDetectorRef,
+    private dialogRef: MatDialogRef<AssignEmployeeDialogComponent>,
+    private authService: AuthService,
     private snackBar: MatSnackBar,
-    @Inject(MAT_DIALOG_DATA) public data: { mode: 'add' | 'edit'; employee?: Employee }
+    private cdr: ChangeDetectorRef,
+    @Inject(MAT_DIALOG_DATA) public project: Project
   ) {
-    this.isEdit = data.mode === 'edit';
     this.form = this.fb.group({
-      firstName: [data.employee?.firstName ?? '', Validators.required],
-      lastName: [data.employee?.lastName ?? '', Validators.required],
-      email: [data.employee?.email ?? '', [Validators.required, Validators.email]],
-      phoneNumber: [data.employee?.phoneNumber ?? '', Validators.required],
-      gender: [data.employee?.gender ?? ''],
-      dob: [data.employee?.dob ? new Date(data.employee.dob) : null, Validators.required],
-      doj: [data.employee?.doj ? new Date(data.employee.doj) : null, Validators.required],
-      departmentId: [null, Validators.required],
-      roleId: [null, Validators.required],
-      managerId: [null],
-      ...(this.isEdit ? { status: [data.employee?.status ?? 'Active'] } : {
-        username: ['', Validators.required],
-        password: ['', [Validators.required, Validators.minLength(6)]]
-      })
+      empId: ['', Validators.required],
+      projectId: [project.projectId],
+      assignedOn: [new Date(), Validators.required],
+      createdBy: [this.authService.getUsername()]
     });
   }
 
   ngOnInit(): void {
-    this.loadingData = true;
-
-    const requests: { [k: string]: any } = {
-      departments: this.http.get<Department[]>(`${environment.apiUrl}/department`),
-      roles: this.http.get<Role[]>(`${environment.apiUrl}/role`),
-    };
-
-    // Load managers (employees with Manager role) for the dropdown
-    if (!this.isEdit) {
-      requests['employees'] = this.http.get<any[]>(`${environment.apiUrl}/employee`);
-    }
-
-    forkJoin(requests).subscribe({
-      next: (res: any) => {
-        this.departments = res.departments as Department[];
-        this.roles = res.roles as Role[];
-
-        if (!this.isEdit && res.employees) {
-          // Filter only Manager-role employees for the manager dropdown
-          this.managers = (res.employees as any[])
-            .filter((e: any) => e.roleName === 'Manager')
-            .map((e: any) => ({ employeeId: e.employeeId, fullName: e.fullName }));
-        }
-
-        if (this.isEdit && this.data.employee) {
-          const dept = this.departments.find(x => x.departmentName === this.data.employee!.departmentName);
-          if (dept) this.form.patchValue({ departmentId: dept.departmentId }, { emitEvent: false });
-
-          const role = this.roles.find(x => x.roleName === this.data.employee!.roleName);
-          if (role) this.form.patchValue({ roleId: role.roleId }, { emitEvent: false });
-        }
-
-        this.loadingData = false;
-        this.cdr.markForCheck();
-
-        // Setup email → username subscription AFTER form is ready
-        if (!this.isEdit) {
-          this.setupUsernameAutoGeneration();
-        }
+    this.http.get<Role[]>(`${environment.apiUrl}/role`).subscribe({
+      next: (r) => {
+        Promise.resolve().then(() => {
+          this.roles = r;
+          this.cdr.markForCheck();
+        });
       },
-      error: () => {
-        this.loadingData = false;
-        this.cdr.markForCheck();
-        this.snackBar.open('Failed to load form data', 'Close', { duration: 3000, panelClass: ['snack-error'] });
-      }
+      error: () => {}
+    });
+
+    this.http.get<any[]>(`${environment.apiUrl}/project/${this.project.projectId}/allocations`).subscribe({
+      next: (allocs) => {
+        this.http.get<Employee[]>(`${environment.apiUrl}/employee`).subscribe({
+          next: (emps) => {
+            Promise.resolve().then(() => {
+              const activeEmpIds = allocs
+                .filter(a => a.status === true)
+                .map(a => a.empId);
+              this.allEmployees = emps.filter(e => !activeEmpIds.includes(e.employeeId));
+              this.applyFilter();
+            });
+          },
+          error: () => {}
+        });
+      },
+      error: () => {}
     });
   }
 
-  ngOnDestroy(): void {
-    this.emailSub?.unsubscribe();
+  onRoleFilterChange(roleName: string): void {
+    this.selectedRoleName = roleName;
+    this.applyFilter();
   }
 
-  /**
-   * Subscribes to email field changes and auto-populates username
-   * ONLY if the user has NOT manually typed in the username field.
-   */
-  private setupUsernameAutoGeneration(): void {
-    this.emailSub = this.form.get('email')!.valueChanges.subscribe((email: string) => {
-      if (!this.usernameAutoPopulated) {
-        const derived = email ? email.split('@')[0].toLowerCase() : '';
-        // Use patchValue with emitEvent:false so username.valueChanges won't re-fire
-        this.form.get('username')!.setValue(derived, { emitEvent: false, onlySelf: true });
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  /**
-   * Called from the template when the user actively types in the username field.
-   * Once the user types manually, auto-generation is locked.
-   */
-  onUsernameInput(): void {
-    this.usernameAutoPopulated = true;
-  }
-
-  /**
-   * Called from the template when the user clears the username field entirely,
-   * allowing auto-generation to resume.
-   */
-  onUsernameClear(): void {
-    const currentVal = this.form.get('username')!.value;
-    if (!currentVal) {
-      this.usernameAutoPopulated = false;
+  applyFilter(): void {
+    if (this.selectedRoleName === 'all') {
+      this.filteredEmployees = this.allEmployees;
+    } else {
+      this.filteredEmployees = this.allEmployees.filter(e => e.roleName === this.selectedRoleName);
     }
+    this.cdr.markForCheck();
   }
 
   save(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      this.cdr.markForCheck();
-      return;
-    }
+    if (this.form.invalid) return;
     this.saving = true;
-    this.cdr.markForCheck();
 
-    const raw = this.form.getRawValue();
-    const dobIso = raw.dob instanceof Date ? raw.dob.toISOString() : raw.dob;
-    const dojIso = raw.doj instanceof Date ? raw.doj.toISOString() : raw.doj;
-    const selectedManagerId: number | null = raw.managerId || null;
+    const val = this.form.value;
+    const body = {
+      ...val,
+      assignedOn: val.assignedOn instanceof Date ? val.assignedOn.toISOString() : val.assignedOn
+    };
 
-    let payload: any;
-    if (this.isEdit) {
-      payload = {
-        firstName: raw.firstName,
-        lastName: raw.lastName,
-        phoneNumber: raw.phoneNumber,
-        gender: raw.gender,
-        departmentId: raw.departmentId,
-        roleId: raw.roleId,
-        status: raw.status
-      };
-    } else {
-      const { managerId, ...rest } = raw;
-      payload = { ...rest, dob: dobIso, doj: dojIso };
-    }
-
-    const emp = this.data.employee;
-    const req = this.isEdit
-      ? this.http.put(`${environment.apiUrl}/employee/${emp!.employeeId}`, payload)
-      : this.http.post<any>(`${environment.apiUrl}/employee`, payload);
-
-    req.subscribe({
-      next: (createdEmployee: any) => {
-        // After creating a new employee, assign them to the selected manager's project
-        if (!this.isEdit && selectedManagerId && createdEmployee?.employeeId) {
-          this.assignToManagerTeam(createdEmployee.employeeId, selectedManagerId);
-        } else {
+    this.http.post(`${environment.apiUrl}/project/assign`, body).subscribe({
+      next: () => {
+        Promise.resolve().then(() => {
           this.saving = false;
+          this.snackBar.open('Resource allocated successfully', 'Close', { duration: 3000, panelClass: ['snack-success'] });
           this.dialogRef.close(true);
           this.cdr.markForCheck();
-        }
-      },
-      error: (err) => {
-        this.saving = false;
-        const errMsg = err.error?.message || err.message || 'An error occurred';
-        this.snackBar.open(`Failed: ${errMsg}`, 'Close', { duration: 5000, panelClass: ['snack-error'] });
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  /**
-   * When a manager is selected, auto-allocate the new employee to a project
-   * that the manager is also allocated to (or a default project).
-   * This makes the employee appear on the manager's "My Team" page.
-   */
-  private assignToManagerTeam(newEmpId: number, managerId: number): void {
-    // First fetch the manager's active allocations to find a shared project
-    this.http.get<any[]>(`${environment.apiUrl}/projectallocation/team-projects`).subscribe({
-      next: (allocs) => {
-        const managerAlloc = allocs.find(a => a.empId === managerId && a.status);
-        const projectId = managerAlloc?.projectId ?? null;
-
-        if (!projectId) {
-          // No project found for manager — just close successfully
-          this.saving = false;
-          this.dialogRef.close(true);
-          this.cdr.markForCheck();
-          return;
-        }
-
-        const allocationPayload = {
-          empId: newEmpId,
-          projectId: projectId,
-          assignedOn: new Date().toISOString(),
-          createdBy: 'admin'
-        };
-
-        this.http.post(`${environment.apiUrl}/ProjectAllocation`, allocationPayload).subscribe({
-          next: () => {
-            this.saving = false;
-            this.dialogRef.close(true);
-            this.cdr.markForCheck();
-          },
-          error: () => {
-            // Still success for employee creation, just allocation failed
-            this.saving = false;
-            this.dialogRef.close(true);
-            this.cdr.markForCheck();
-          }
         });
       },
-      error: () => {
-        this.saving = false;
-        this.dialogRef.close(true);
-        this.cdr.markForCheck();
+      error: (err) => {
+        Promise.resolve().then(() => {
+          this.saving = false;
+          const errMsg = err.error?.message || err.message || 'Failed to allocate resource';
+          this.snackBar.open(`Failed: ${errMsg}`, 'Close', { duration: 5000, panelClass: ['snack-error'] });
+          this.cdr.markForCheck();
+        });
       }
     });
   }
