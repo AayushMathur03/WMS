@@ -156,4 +156,4 @@ stages:
         azure_static_web_apps_api_token: '$(STATIC_WEB_APP_TOKEN)'
         app_location: 'WMS.Frontend'
         output_location: 'dist/WMS.Frontend/browser'
-        skip_app_build: false
+        skip_app_build: true

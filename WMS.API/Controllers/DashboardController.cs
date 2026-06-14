@@ -24,22 +24,26 @@ namespace WMS.API.Controllers
         {
             var today = DateTime.Today;
 
-            // Execute all counts in a single round-trip query projected via an always-seeded table (Roles)
-            var summary = await _context.Roles
-                .Take(1)
-                .Select(_ => new DashboardSummaryDto
-                {
-                    TotalEmployees = _context.Employees.Count(),
-                    ActiveEmployees = _context.Employees.Count(e => e.Status == "Active"),
-                    TodayCheckIns = _context.Attendances.Count(a => a.AttendanceDate == today),
-                    PendingLeaves = _context.Leaves.Count(l => l.Status == "Pending"),
-                    ActiveProjects = _context.Projects.Count(p => p.Status == "Active"),
-                    TotalDepartments = _context.Departments.Count(),
-                    TotalClients = _context.Clients.Count(c => c.Status == true)
-                })
-                .FirstOrDefaultAsync();
+            var totalEmployees = await _context.Employees.CountAsync();
+            var activeEmployees = await _context.Employees.CountAsync(e => e.Status == "Active");
+            var todayCheckIns = await _context.Attendances.CountAsync(a => a.AttendanceDate == today);
+            var pendingLeaves = await _context.Leaves.CountAsync(l => l.Status == "Pending");
+            var activeProjects = await _context.Projects.CountAsync(p => p.Status == "Active");
+            var totalDepartments = await _context.Departments.CountAsync();
+            var totalClients = await _context.Clients.CountAsync(c => c.Status == true);
 
-            return Ok(summary ?? new DashboardSummaryDto());
+            var summary = new DashboardSummaryDto
+            {
+                TotalEmployees = totalEmployees,
+                ActiveEmployees = activeEmployees,
+                TodayCheckIns = todayCheckIns,
+                PendingLeaves = pendingLeaves,
+                ActiveProjects = activeProjects,
+                TotalDepartments = totalDepartments,
+                TotalClients = totalClients
+            };
+
+            return Ok(summary);
         }
     }
 }
