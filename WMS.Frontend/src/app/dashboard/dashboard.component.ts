@@ -15,6 +15,8 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Chart, registerables } from 'chart.js';
 import { take } from 'rxjs/operators';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../shared/services/auth.service';
 
@@ -188,134 +190,90 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private loadAdminData(): void {
-    this.http.get<DashboardSummary>(`${environment.apiUrl}/dashboard/summary`).subscribe({
-      next: (sum) => {
-        this.summary = sum;
-
-        this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).subscribe({
-          next: (ann) => { this.announcements = ann.slice(0, 3); },
-          error: () => {}
-        });
-
-        this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/pending`).subscribe({
-          next: (lv) => { this.pendingLeaves = lv.slice(0, 5); },
-          error: () => {}
-        });
-
-        this.http.get<Project[]>(`${environment.apiUrl}/project`).subscribe({
-          next: (pj) => { this.projects = pj.slice(0, 5); },
-          error: () => {}
-        });
-
-        this.http.get<any[]>(`${environment.apiUrl}/employee`).subscribe({
-          next: (emps) => { this.employees = emps; },
-          error: () => {}
-        });
-
-        this.http.get<AuditLog[]>(`${environment.apiUrl}/auditlog`).subscribe({
-          next: (logs) => {
-            this.auditLogs = logs
-              .sort((a, b) => new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime())
-              .slice(0, 5);
-            this.zone.run(() => {
-              this.loading = false;
-              setTimeout(() => this.renderCharts(), 0);
-              this.cdr.markForCheck();
-            });
-          },
-          error: () => {
-            this.zone.run(() => {
-              this.loading = false;
-              this.cdr.markForCheck();
-            });
-          }
+    forkJoin({
+      summary: this.http.get<DashboardSummary>(`${environment.apiUrl}/dashboard/summary`).pipe(catchError(() => of(null))),
+      announcements: this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).pipe(catchError(() => of([]))),
+      leaves: this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/pending`).pipe(catchError(() => of([]))),
+      projects: this.http.get<Project[]>(`${environment.apiUrl}/project`).pipe(catchError(() => of([]))),
+      employees: this.http.get<any[]>(`${environment.apiUrl}/employee`).pipe(catchError(() => of([]))),
+      auditLogs: this.http.get<AuditLog[]>(`${environment.apiUrl}/auditlog`).pipe(catchError(() => of([])))
+    }).subscribe({
+      next: (res) => {
+        this.summary = res.summary;
+        this.announcements = (res.announcements as Announcement[]).slice(0, 3);
+        this.pendingLeaves = (res.leaves as LeaveRequest[]).slice(0, 5);
+        this.projects = (res.projects as Project[]).slice(0, 5);
+        this.employees = res.employees as any[];
+        this.auditLogs = (res.auditLogs as AuditLog[])
+          .sort((a, b) => new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime())
+          .slice(0, 5);
+        this.zone.run(() => {
+          this.loading = false;
+          setTimeout(() => this.renderCharts(), 0);
+          this.cdr.markForCheck();
         });
       },
       error: () => {
-        this.loading = false;
-        this.cdr.markForCheck();
+        this.zone.run(() => {
+          this.loading = false;
+          this.cdr.markForCheck();
+        });
       }
     });
   }
 
   private loadManagerData(): void {
-    // Parallel fetch for Manager dashboard
-    this.http.get<DashboardSummary>(`${environment.apiUrl}/dashboard/summary`).subscribe({
-      next: (sum) => {
-        this.summary = sum;
-
-        this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).subscribe({
-          next: (ann) => { this.announcements = ann.slice(0, 3); },
-          error: () => {}
-        });
-
-        this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/pending`).subscribe({
-          next: (lv) => { this.pendingLeaves = lv.slice(0, 5); },
-          error: () => {}
-        });
-
-        this.http.get<Allocation[]>(`${environment.apiUrl}/projectallocation/team-projects`).subscribe({
-          next: (allocs) => {
-            this.allocations = allocs.filter(a => a.status);
-            this.zone.run(() => {
-              this.loading = false;
-              setTimeout(() => this.renderCharts(), 0);
-              this.cdr.markForCheck();
-            });
-          },
-          error: () => {
-            this.zone.run(() => {
-              this.loading = false;
-              this.cdr.markForCheck();
-            });
-          }
+    forkJoin({
+      summary: this.http.get<DashboardSummary>(`${environment.apiUrl}/dashboard/summary`).pipe(catchError(() => of(null))),
+      announcements: this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).pipe(catchError(() => of([]))),
+      leaves: this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/pending`).pipe(catchError(() => of([]))),
+      allocations: this.http.get<Allocation[]>(`${environment.apiUrl}/projectallocation/team-projects`).pipe(catchError(() => of([])))
+    }).subscribe({
+      next: (res) => {
+        this.summary = res.summary;
+        this.announcements = (res.announcements as Announcement[]).slice(0, 3);
+        this.pendingLeaves = (res.leaves as LeaveRequest[]).slice(0, 5);
+        this.allocations = (res.allocations as Allocation[]).filter(a => a.status);
+        this.zone.run(() => {
+          this.loading = false;
+          setTimeout(() => this.renderCharts(), 0);
+          this.cdr.markForCheck();
         });
       },
       error: () => {
-        this.loading = false;
-        this.cdr.markForCheck();
+        this.zone.run(() => {
+          this.loading = false;
+          this.cdr.markForCheck();
+        });
       }
     });
   }
 
   private loadEmployeeData(): void {
-    // Scoped queries for the logged-in employee context
-    this.http.get<Allocation[]>(`${environment.apiUrl}/projectallocation/my-projects`).subscribe({
-      next: (myProj) => {
-        this.myProjects = myProj;
-
-        this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/my-leaves`).subscribe({
-          next: (lv) => { this.myLeaves = lv.sort((a, b) => new Date(b.appliedOn).getTime() - new Date(a.appliedOn).getTime()); },
-          error: () => {}
-        });
-
-        this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).subscribe({
-          next: (ann) => { this.announcements = ann.slice(0, 3); },
-          error: () => {}
-        });
-
-        this.http.get<AttendanceRecord[]>(`${environment.apiUrl}/attendance/my-attendance`).subscribe({
-          next: (att) => {
-            this.myAttendance = att || [];
-            const todayStr = this.getLocalDateString(new Date());
-            this.todayRecord = this.myAttendance.find(r => r.attendanceDate.split('T')[0] === todayStr) || null;
-            this.zone.run(() => {
-              this.loading = false;
-              setTimeout(() => this.renderCharts(), 0);
-              this.cdr.markForCheck();
-            });
-          },
-          error: () => {
-            this.zone.run(() => {
-              this.loading = false;
-              this.cdr.markForCheck();
-            });
-          }
+    forkJoin({
+      myProjects: this.http.get<Allocation[]>(`${environment.apiUrl}/projectallocation/my-projects`).pipe(catchError(() => of([]))),
+      myLeaves: this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/my-leaves`).pipe(catchError(() => of([]))),
+      announcements: this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).pipe(catchError(() => of([]))),
+      attendance: this.http.get<AttendanceRecord[]>(`${environment.apiUrl}/attendance/my-attendance`).pipe(catchError(() => of([])))
+    }).subscribe({
+      next: (res) => {
+        this.myProjects = res.myProjects as Allocation[];
+        this.myLeaves = (res.myLeaves as LeaveRequest[]).sort((a, b) => new Date(b.appliedOn).getTime() - new Date(a.appliedOn).getTime());
+        this.announcements = (res.announcements as Announcement[]).slice(0, 3);
+        this.myAttendance = (res.attendance as AttendanceRecord[]) || [];
+        const todayStr = this.getLocalDateString(new Date());
+        this.todayRecord = this.myAttendance.find(r => r.attendanceDate.split('T')[0] === todayStr) || null;
+        this.zone.run(() => {
+          this.loading = false;
+          setTimeout(() => this.renderCharts(), 0);
+          this.cdr.markForCheck();
         });
       },
       error: () => {
-        this.loading = false;
-        this.cdr.markForCheck();
+        this.zone.run(() => {
+          this.loading = false;
+          this.cdr.markForCheck();
+        });
       }
     });
   }
