@@ -6,13 +6,14 @@ import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/materia
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { environment } from '../../../environments/environment';
 import { Announcement } from '../announcements.component';
 
 @Component({
   selector: 'app-announcement-form-dialog',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [CommonModule, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSnackBarModule],
   templateUrl: './announcement-form-dialog.component.html'
 })
 export class AnnouncementFormDialogComponent {
@@ -24,6 +25,7 @@ export class AnnouncementFormDialogComponent {
     private fb: FormBuilder,
     private http: HttpClient,
     private dialogRef: MatDialogRef<AnnouncementFormDialogComponent>,
+    private snackBar: MatSnackBar,
     @Inject(MAT_DIALOG_DATA) public data: Announcement | null
   ) {
     this.isEdit = !!data;
@@ -41,7 +43,10 @@ export class AnnouncementFormDialogComponent {
       : this.http.post(`${environment.apiUrl}/announcement`, this.form.value);
     req.subscribe({
       next: () => { this.saving = false; this.dialogRef.close(true); },
-      error: () => { this.saving = false; }
+      error: () => {
+        this.saving = false;
+        this.snackBar.open('Failed to save announcement. Please try again.', 'Close', { duration: 4000, panelClass: ['snack-error'] });
+      }
     });
   }
 

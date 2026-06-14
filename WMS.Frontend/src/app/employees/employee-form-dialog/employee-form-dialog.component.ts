@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, Inject, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -7,19 +7,23 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { AuthService } from '../../shared/services/auth.service';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { forkJoin, Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Project } from '../projects.component';
+import { Employee } from '../employees.component';
 
+interface Department { departmentId: number; departmentName: string; }
 interface Role { roleId: number; roleName: string; }
-interface Employee { employeeId: number; fullName: string; roleName?: string; }
+interface Manager { employeeId: number; fullName: string; }
 
 @Component({
-  selector: 'app-assign-employee-dialog',
+  selector: 'app-employee-form-dialog',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     ReactiveFormsModule,
@@ -28,107 +32,216 @@ interface Employee { employeeId: number; fullName: string; roleName?: string; }
     MatInputModule,
     MatSelectModule,
     MatButtonModule,
+    MatIconModule,
     MatDatepickerModule,
     MatNativeDateModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatProgressSpinnerModule
   ],
-  templateUrl: './assign-employee-dialog.component.html'
+  templateUrl: './employee-form-dialog.component.html'
 })
-export class AssignEmployeeDialogComponent implements OnInit {
+export class EmployeeFormDialogComponent implements OnInit, OnDestroy {
   form: FormGroup;
+  departments: Department[] = [];
   roles: Role[] = [];
-  allEmployees: Employee[] = [];
-  filteredEmployees: Employee[] = [];
-  selectedRoleName: string = 'all';
+  managers: Manager[] = [];
+  isEdit: boolean;
   saving = false;
+  loadingData = true;
+  hidePassword = true;
+
+  private usernameAutoPopulated = false;
+  private emailSub?: Subscription;
 
   constructor(
     private fb: FormBuilder,
     private http: HttpClient,
-    private dialogRef: MatDialogRef<AssignEmployeeDialogComponent>,
-    private authService: AuthService,
-    private snackBar: MatSnackBar,
+    private dialogRef: MatDialogRef<EmployeeFormDialogComponent>,
     private cdr: ChangeDetectorRef,
-    @Inject(MAT_DIALOG_DATA) public project: Project
+    private snackBar: MatSnackBar,
+    @Inject(MAT_DIALOG_DATA) public data: { mode: 'add' | 'edit'; employee?: Employee }
   ) {
+    this.isEdit = data.mode === 'edit';
     this.form = this.fb.group({
-      empId: ['', Validators.required],
-      projectId: [project.projectId],
-      assignedOn: [new Date(), Validators.required],
-      createdBy: [this.authService.getUsername()]
+      firstName: [data.employee?.firstName ?? '', Validators.required],
+      lastName: [data.employee?.lastName ?? '', Validators.required],
+      email: [data.employee?.email ?? '', [Validators.required, Validators.email]],
+      phoneNumber: [data.employee?.phoneNumber ?? '', Validators.required],
+      gender: [data.employee?.gender ?? ''],
+      dob: [data.employee?.dob ? new Date(data.employee.dob) : null, Validators.required],
+      doj: [data.employee?.doj ? new Date(data.employee.doj) : null, Validators.required],
+      departmentId: [null, Validators.required],
+      roleId: [null, Validators.required],
+      managerId: [null],
+      ...(this.isEdit ? { status: [data.employee?.status ?? 'Active'] } : {
+        username: ['', Validators.required],
+        password: ['', [Validators.required, Validators.minLength(6)]]
+      })
     });
   }
 
   ngOnInit(): void {
-    this.http.get<Role[]>(`${environment.apiUrl}/role`).subscribe({
-      next: (r) => {
-        Promise.resolve().then(() => {
-          this.roles = r;
-          this.cdr.markForCheck();
-        });
-      },
-      error: () => {}
-    });
+    this.loadingData = true;
 
-    this.http.get<any[]>(`${environment.apiUrl}/project/${this.project.projectId}/allocations`).subscribe({
-      next: (allocs) => {
-        this.http.get<Employee[]>(`${environment.apiUrl}/employee`).subscribe({
-          next: (emps) => {
-            Promise.resolve().then(() => {
-              const activeEmpIds = allocs
-                .filter(a => a.status === true)
-                .map(a => a.empId);
-              this.allEmployees = emps.filter(e => !activeEmpIds.includes(e.employeeId));
-              this.applyFilter();
-            });
-          },
-          error: () => {}
-        });
-      },
-      error: () => {}
-    });
-  }
+    const requests: { [k: string]: any } = {
+      departments: this.http.get<Department[]>(`${environment.apiUrl}/department`),
+      roles: this.http.get<Role[]>(`${environment.apiUrl}/role`),
+    };
 
-  onRoleFilterChange(roleName: string): void {
-    this.selectedRoleName = roleName;
-    this.applyFilter();
-  }
-
-  applyFilter(): void {
-    if (this.selectedRoleName === 'all') {
-      this.filteredEmployees = this.allEmployees;
-    } else {
-      this.filteredEmployees = this.allEmployees.filter(e => e.roleName === this.selectedRoleName);
+    if (!this.isEdit) {
+      requests['employees'] = this.http.get<any[]>(`${environment.apiUrl}/employee`);
     }
-    this.cdr.markForCheck();
+
+    forkJoin(requests).subscribe({
+      next: (res: any) => {
+        this.departments = res.departments as Department[];
+        this.roles = res.roles as Role[];
+
+        if (!this.isEdit && res.employees) {
+          this.managers = (res.employees as any[])
+            .filter((e: any) => e.roleName === 'Manager')
+            .map((e: any) => ({ employeeId: e.employeeId, fullName: e.fullName }));
+        }
+
+        if (this.isEdit && this.data.employee) {
+          const dept = this.departments.find(x => x.departmentName === this.data.employee!.departmentName);
+          if (dept) this.form.patchValue({ departmentId: dept.departmentId }, { emitEvent: false });
+
+          const role = this.roles.find(x => x.roleName === this.data.employee!.roleName);
+          if (role) this.form.patchValue({ roleId: role.roleId }, { emitEvent: false });
+        }
+
+        this.loadingData = false;
+        this.cdr.markForCheck();
+
+        if (!this.isEdit) {
+          this.setupUsernameAutoGeneration();
+        }
+      },
+      error: () => {
+        this.loadingData = false;
+        this.cdr.markForCheck();
+        this.snackBar.open('Failed to load form data', 'Close', { duration: 3000, panelClass: ['snack-error'] });
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.emailSub?.unsubscribe();
+  }
+
+  private setupUsernameAutoGeneration(): void {
+    this.emailSub = this.form.get('email')!.valueChanges.subscribe((email: string) => {
+      if (!this.usernameAutoPopulated) {
+        const derived = email ? email.split('@')[0].toLowerCase() : '';
+        this.form.get('username')!.setValue(derived, { emitEvent: false, onlySelf: true });
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  onUsernameInput(): void {
+    this.usernameAutoPopulated = true;
+  }
+
+  onUsernameClear(): void {
+    const currentVal = this.form.get('username')!.value;
+    if (!currentVal) {
+      this.usernameAutoPopulated = false;
+    }
   }
 
   save(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.cdr.markForCheck();
+      return;
+    }
     this.saving = true;
+    this.cdr.markForCheck();
 
-    const val = this.form.value;
-    const body = {
-      ...val,
-      assignedOn: val.assignedOn instanceof Date ? val.assignedOn.toISOString() : val.assignedOn
-    };
+    const raw = this.form.getRawValue();
+    const dobIso = raw.dob instanceof Date ? raw.dob.toISOString() : raw.dob;
+    const dojIso = raw.doj instanceof Date ? raw.doj.toISOString() : raw.doj;
+    const selectedManagerId: number | null = raw.managerId || null;
 
-    this.http.post(`${environment.apiUrl}/project/assign`, body).subscribe({
-      next: () => {
-        Promise.resolve().then(() => {
+    let payload: any;
+    if (this.isEdit) {
+      payload = {
+        firstName: raw.firstName,
+        lastName: raw.lastName,
+        phoneNumber: raw.phoneNumber,
+        gender: raw.gender,
+        departmentId: raw.departmentId,
+        roleId: raw.roleId,
+        status: raw.status
+      };
+    } else {
+      const { managerId, ...rest } = raw;
+      payload = { ...rest, dob: dobIso, doj: dojIso };
+    }
+
+    const emp = this.data.employee;
+    const req = this.isEdit
+      ? this.http.put(`${environment.apiUrl}/employee/${emp!.employeeId}`, payload)
+      : this.http.post<any>(`${environment.apiUrl}/employee`, payload);
+
+    req.subscribe({
+      next: (createdEmployee: any) => {
+        if (!this.isEdit && selectedManagerId && createdEmployee?.employeeId) {
+          this.assignToManagerTeam(createdEmployee.employeeId, selectedManagerId);
+        } else {
           this.saving = false;
-          this.snackBar.open('Resource allocated successfully', 'Close', { duration: 3000, panelClass: ['snack-success'] });
           this.dialogRef.close(true);
           this.cdr.markForCheck();
-        });
+        }
       },
       error: (err) => {
-        Promise.resolve().then(() => {
+        this.saving = false;
+        const errMsg = err.error?.message || err.message || 'An error occurred';
+        this.snackBar.open(`Failed: ${errMsg}`, 'Close', { duration: 5000, panelClass: ['snack-error'] });
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private assignToManagerTeam(newEmpId: number, managerId: number): void {
+    this.http.get<any[]>(`${environment.apiUrl}/projectallocation/team-projects`).subscribe({
+      next: (allocs) => {
+        const managerAlloc = allocs.find(a => a.empId === managerId && a.status);
+        const projectId = managerAlloc?.projectId ?? null;
+
+        if (!projectId) {
           this.saving = false;
-          const errMsg = err.error?.message || err.message || 'Failed to allocate resource';
-          this.snackBar.open(`Failed: ${errMsg}`, 'Close', { duration: 5000, panelClass: ['snack-error'] });
+          this.dialogRef.close(true);
           this.cdr.markForCheck();
+          return;
+        }
+
+        const allocationPayload = {
+          empId: newEmpId,
+          projectId: projectId,
+          assignedOn: new Date().toISOString(),
+          createdBy: 'admin'
+        };
+
+        this.http.post(`${environment.apiUrl}/ProjectAllocation`, allocationPayload).subscribe({
+          next: () => {
+            this.saving = false;
+            this.dialogRef.close(true);
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.saving = false;
+            this.dialogRef.close(true);
+            this.cdr.markForCheck();
+          }
         });
+      },
+      error: () => {
+        this.saving = false;
+        this.dialogRef.close(true);
+        this.cdr.markForCheck();
       }
     });
   }
