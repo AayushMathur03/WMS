@@ -154,6 +154,6 @@ stages:
       displayName: 'Deploy to Static Web App'
       inputs:
         azure_static_web_apps_api_token: '$(STATIC_WEB_APP_TOKEN)'
-        app_location: 'WMS.Frontend'
-        output_location: 'dist/WMS.Frontend/browser'
+        app_location: 'WMS.Frontend/dist/WMS.Frontend/browser'
+        output_location: ''
         skip_app_build: true
