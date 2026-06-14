@@ -60,28 +60,32 @@ export class AssignEmployeeDialogComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // 1. Fetch Roles
-    this.http.get<Role[]>(`${environment.apiUrl}/role`).subscribe(r => {
-      Promise.resolve().then(() => {
-        this.roles = r;
-        this.cdr.markForCheck();
-      });
+    this.http.get<Role[]>(`${environment.apiUrl}/role`).subscribe({
+      next: (r) => {
+        Promise.resolve().then(() => {
+          this.roles = r;
+          this.cdr.markForCheck();
+        });
+      },
+      error: () => {}
     });
 
-    // 2. Fetch Project Allocations and Employees
-    this.http.get<any[]>(`${environment.apiUrl}/project/${this.project.projectId}/allocations`).subscribe(allocs => {
-      this.http.get<Employee[]>(`${environment.apiUrl}/employee`).subscribe(emps => {
-        Promise.resolve().then(() => {
-          // Find employees who are already actively assigned (status is true)
-          const activeEmpIds = allocs
-            .filter(a => a.status === true)
-            .map(a => a.empId);
-
-          // Exclude already actively allocated employees to prevent duplicates
-          this.allEmployees = emps.filter(e => !activeEmpIds.includes(e.employeeId));
-          this.applyFilter();
+    this.http.get<any[]>(`${environment.apiUrl}/project/${this.project.projectId}/allocations`).subscribe({
+      next: (allocs) => {
+        this.http.get<Employee[]>(`${environment.apiUrl}/employee`).subscribe({
+          next: (emps) => {
+            Promise.resolve().then(() => {
+              const activeEmpIds = allocs
+                .filter(a => a.status === true)
+                .map(a => a.empId);
+              this.allEmployees = emps.filter(e => !activeEmpIds.includes(e.employeeId));
+              this.applyFilter();
+            });
+          },
+          error: () => {}
         });
-      });
+      },
+      error: () => {}
     });
   }
 

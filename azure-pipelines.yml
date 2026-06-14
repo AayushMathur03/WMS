@@ -127,19 +127,33 @@ stages:
   jobs:
   - job: DeployFrontend
     displayName: 'Deploy Angular to Azure Static Web Apps'
+    pool:
+      vmImage: 'ubuntu-latest'
     steps:
-    - task: DownloadBuildArtifacts@1
-      displayName: 'Download frontend artifact'
+    - checkout: self
+
+    - task: NodeTool@0
+      displayName: 'Use Node.js 20'
       inputs:
-        buildType: 'current'
-        downloadType: 'single'
-        artifactName: 'frontend'
-        downloadPath: '$(System.ArtifactsDirectory)'
+        versionSpec: '20.x'
+
+    - task: Npm@1
+      displayName: 'npm ci'
+      inputs:
+        command: 'ci'
+        workingDir: 'WMS.Frontend'
+
+    - task: Npm@1
+      displayName: 'ng build --configuration production'
+      inputs:
+        command: 'custom'
+        workingDir: 'WMS.Frontend'
+        customCommand: 'run build -- --configuration production'
 
     - task: AzureStaticWebApp@0
       displayName: 'Deploy to Static Web App'
       inputs:
         azure_static_web_apps_api_token: '$(STATIC_WEB_APP_TOKEN)'
-        app_location: '$(System.ArtifactsDirectory)/frontend'
-        skip_app_build: true
-        output_location: ''
+        app_location: 'WMS.Frontend'
+        output_location: 'dist/WMS.Frontend/browser'
+        skip_app_build: false
