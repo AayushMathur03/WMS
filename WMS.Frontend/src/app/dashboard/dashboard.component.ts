@@ -150,6 +150,7 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
   // Chart Management
   private charts: { [key: string]: Chart | null } = {};
   private chartsPending = false;
+  private employees: any[] = [];
 
   constructor(
     private http: HttpClient,
@@ -194,37 +195,44 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   private loadAdminData(): void {
-    // Parallel fetch for Admin dashboard
     this.http.get<DashboardSummary>(`${environment.apiUrl}/dashboard/summary`).subscribe({
       next: (sum) => {
         this.summary = sum;
-        
-        // Fetch announcements
+
         this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).subscribe(ann => {
           this.announcements = ann.slice(0, 3);
         });
 
-        // Fetch pending leaves
         this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/pending`).subscribe(lv => {
           this.pendingLeaves = lv.slice(0, 5);
         });
 
-        // Fetch projects
         this.http.get<Project[]>(`${environment.apiUrl}/project`).subscribe(pj => {
           this.projects = pj.slice(0, 5);
         });
 
-        // Fetch audit logs
-        this.http.get<AuditLog[]>(`${environment.apiUrl}/auditlog`).subscribe(logs => {
-          this.auditLogs = logs
-            .sort((a, b) => new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime())
-            .slice(0, 5);
-          
-          this.zone.run(() => {
-            this.loading = false;
-            this.chartsPending = true;
-            this.cdr.markForCheck();
-          });
+        this.http.get<any[]>(`${environment.apiUrl}/employee`).subscribe(emps => {
+          this.employees = emps;
+        });
+
+        this.http.get<AuditLog[]>(`${environment.apiUrl}/auditlog`).subscribe({
+          next: (logs) => {
+            this.auditLogs = logs
+              .sort((a, b) => new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime())
+              .slice(0, 5);
+
+            this.zone.run(() => {
+              this.loading = false;
+              this.chartsPending = true;
+              this.cdr.markForCheck();
+            });
+          },
+          error: () => {
+            this.zone.run(() => {
+              this.loading = false;
+              this.cdr.markForCheck();
+            });
+          }
         });
       },
       error: () => {
@@ -459,43 +467,40 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
 
     // 2. Department Employee Distribution
-    if (deptCanvas) {
-      // Fetch all employees via REST to analyze department grouping
-      this.http.get<any[]>(`${environment.apiUrl}/employee`).subscribe(emps => {
-        const counts: { [dept: string]: number } = {};
-        emps.forEach(e => {
-          const dept = e.departmentName || 'Unassigned';
-          counts[dept] = (counts[dept] || 0) + 1;
-        });
+    if (deptCanvas && this.employees.length > 0) {
+      const counts: { [dept: string]: number } = {};
+      this.employees.forEach(e => {
+        const dept = e.departmentName || 'Unassigned';
+        counts[dept] = (counts[dept] || 0) + 1;
+      });
 
-        const labels = Object.keys(counts);
-        const data = Object.values(counts);
+      const labels = Object.keys(counts);
+      const data = Object.values(counts);
 
-        const ctx = deptCanvas.getContext('2d');
-        if (ctx && labels.length > 0) {
-          this.charts['dept'] = new Chart(ctx, {
-            type: 'pie',
-            data: {
-              labels: labels,
-              datasets: [{
-                data: data,
-                backgroundColor: ['#6366f1', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6'],
-                borderWidth: 0
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'bottom',
-                  labels: { font: { family: 'Outfit', size: 12 } }
-                }
+      const ctx = deptCanvas.getContext('2d');
+      if (ctx && labels.length > 0) {
+        this.charts['dept'] = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: data,
+              backgroundColor: ['#6366f1', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { font: { family: 'Outfit', size: 12 } }
               }
             }
-          });
-        }
-      });
+          }
+        });
+      }
     }
   }
 
