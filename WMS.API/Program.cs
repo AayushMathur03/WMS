@@ -13,9 +13,15 @@ using WMS.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database
 builder.Services.AddDbContext<WmsDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null
+        )
+    ));
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
