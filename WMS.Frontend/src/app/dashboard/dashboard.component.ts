@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, AfterViewChecked, ChangeDetectorRef, NgZone, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -14,6 +14,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Chart, registerables } from 'chart.js';
+import { take } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../shared/services/auth.service';
 
@@ -116,7 +117,7 @@ interface AttendanceRecord {
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })
-export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
+export class DashboardComponent implements OnInit, OnDestroy {
   role: string = '';
   username: string = '';
   employeeId: number = 0;
@@ -149,7 +150,6 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   // Chart Management
   private charts: { [key: string]: Chart | null } = {};
-  private chartsPending = false;
   private employees: any[] = [];
 
   constructor(
@@ -166,13 +166,6 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.username = this.authService.getUsername();
     this.employeeId = this.authService.getEmployeeId();
     this.loadDashboardData();
-  }
-
-  ngAfterViewChecked(): void {
-    if (this.chartsPending) {
-      this.chartsPending = false;
-      this.renderCharts();
-    }
   }
 
   ngOnDestroy(): void {
@@ -199,20 +192,24 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
       next: (sum) => {
         this.summary = sum;
 
-        this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).subscribe(ann => {
-          this.announcements = ann.slice(0, 3);
+        this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).subscribe({
+          next: (ann) => { this.announcements = ann.slice(0, 3); },
+          error: () => {}
         });
 
-        this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/pending`).subscribe(lv => {
-          this.pendingLeaves = lv.slice(0, 5);
+        this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/pending`).subscribe({
+          next: (lv) => { this.pendingLeaves = lv.slice(0, 5); },
+          error: () => {}
         });
 
-        this.http.get<Project[]>(`${environment.apiUrl}/project`).subscribe(pj => {
-          this.projects = pj.slice(0, 5);
+        this.http.get<Project[]>(`${environment.apiUrl}/project`).subscribe({
+          next: (pj) => { this.projects = pj.slice(0, 5); },
+          error: () => {}
         });
 
-        this.http.get<any[]>(`${environment.apiUrl}/employee`).subscribe(emps => {
-          this.employees = emps;
+        this.http.get<any[]>(`${environment.apiUrl}/employee`).subscribe({
+          next: (emps) => { this.employees = emps; },
+          error: () => {}
         });
 
         this.http.get<AuditLog[]>(`${environment.apiUrl}/auditlog`).subscribe({
@@ -220,10 +217,9 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
             this.auditLogs = logs
               .sort((a, b) => new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime())
               .slice(0, 5);
-
             this.zone.run(() => {
               this.loading = false;
-              this.chartsPending = true;
+              setTimeout(() => this.renderCharts(), 0);
               this.cdr.markForCheck();
             });
           },
@@ -248,25 +244,31 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
       next: (sum) => {
         this.summary = sum;
 
-        // Fetch announcements
-        this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).subscribe(ann => {
-          this.announcements = ann.slice(0, 3);
+        this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).subscribe({
+          next: (ann) => { this.announcements = ann.slice(0, 3); },
+          error: () => {}
         });
 
-        // Fetch pending leaves for review
-        this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/pending`).subscribe(lv => {
-          this.pendingLeaves = lv.slice(0, 5);
+        this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/pending`).subscribe({
+          next: (lv) => { this.pendingLeaves = lv.slice(0, 5); },
+          error: () => {}
         });
 
-        // Fetch allocations to calculate workloads and active team projects
-        this.http.get<Allocation[]>(`${environment.apiUrl}/projectallocation/team-projects`).subscribe(allocs => {
-          this.allocations = allocs.filter(a => a.status);
-          
-          this.zone.run(() => {
-            this.loading = false;
-            this.chartsPending = true;
-            this.cdr.markForCheck();
-          });
+        this.http.get<Allocation[]>(`${environment.apiUrl}/projectallocation/team-projects`).subscribe({
+          next: (allocs) => {
+            this.allocations = allocs.filter(a => a.status);
+            this.zone.run(() => {
+              this.loading = false;
+              setTimeout(() => this.renderCharts(), 0);
+              this.cdr.markForCheck();
+            });
+          },
+          error: () => {
+            this.zone.run(() => {
+              this.loading = false;
+              this.cdr.markForCheck();
+            });
+          }
         });
       },
       error: () => {
@@ -282,29 +284,33 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
       next: (myProj) => {
         this.myProjects = myProj;
 
-        // Fetch my leaves
-        this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/my-leaves`).subscribe(lv => {
-          this.myLeaves = lv.sort((a, b) => new Date(b.appliedOn).getTime() - new Date(a.appliedOn).getTime());
+        this.http.get<LeaveRequest[]>(`${environment.apiUrl}/leave/my-leaves`).subscribe({
+          next: (lv) => { this.myLeaves = lv.sort((a, b) => new Date(b.appliedOn).getTime() - new Date(a.appliedOn).getTime()); },
+          error: () => {}
         });
 
-        // Fetch my announcements
-        this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).subscribe(ann => {
-          this.announcements = ann.slice(0, 3);
+        this.http.get<Announcement[]>(`${environment.apiUrl}/announcement/active`).subscribe({
+          next: (ann) => { this.announcements = ann.slice(0, 3); },
+          error: () => {}
         });
 
-        // Fetch my attendance history
-        this.http.get<AttendanceRecord[]>(`${environment.apiUrl}/attendance/my-attendance`).subscribe(att => {
-          this.myAttendance = att || [];
-          
-          // Identify today's record to sync Check-In status
-          const todayStr = this.getLocalDateString(new Date());
-          this.todayRecord = this.myAttendance.find(r => r.attendanceDate.split('T')[0] === todayStr) || null;
-
-          this.zone.run(() => {
-            this.loading = false;
-            this.chartsPending = true;
-            this.cdr.markForCheck();
-          });
+        this.http.get<AttendanceRecord[]>(`${environment.apiUrl}/attendance/my-attendance`).subscribe({
+          next: (att) => {
+            this.myAttendance = att || [];
+            const todayStr = this.getLocalDateString(new Date());
+            this.todayRecord = this.myAttendance.find(r => r.attendanceDate.split('T')[0] === todayStr) || null;
+            this.zone.run(() => {
+              this.loading = false;
+              setTimeout(() => this.renderCharts(), 0);
+              this.cdr.markForCheck();
+            });
+          },
+          error: () => {
+            this.zone.run(() => {
+              this.loading = false;
+              this.cdr.markForCheck();
+            });
+          }
         });
       },
       error: () => {
@@ -321,7 +327,7 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
       width: '600px',
       data: { mode: 'add' }
     });
-    ref.afterClosed().subscribe(res => {
+    ref.afterClosed().pipe(take(1)).subscribe(res => {
       if (res) this.loadDashboardData();
     });
   }
@@ -331,7 +337,7 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
       width: '500px',
       data: null
     });
-    ref.afterClosed().subscribe(res => {
+    ref.afterClosed().pipe(take(1)).subscribe(res => {
       if (res) this.loadDashboardData();
     });
   }
@@ -341,7 +347,7 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
       width: '500px',
       data: null
     });
-    ref.afterClosed().subscribe(res => {
+    ref.afterClosed().pipe(take(1)).subscribe(res => {
       if (res) this.loadDashboardData();
     });
   }
@@ -351,7 +357,7 @@ export class DashboardComponent implements OnInit, AfterViewChecked, OnDestroy {
       width: '450px',
       data: proj
     });
-    ref.afterClosed().subscribe(res => {
+    ref.afterClosed().pipe(take(1)).subscribe(res => {
       if (res) this.loadDashboardData();
     });
   }
